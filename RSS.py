@@ -35,7 +35,7 @@ def generate_rss(items, output_path):
 
 def extract_items(page):
     items = []
-    rows = page.locator("div.summary-templates > div.kb-template.ng-scope > div:nth-child(2) > div > div")
+    rows = page.locator("#__layout > div > div > div.container_sWpuv.notifications > div.global-content.content_06Mef > div > div > div.content_NR3Mk > article")
     count = rows.count()
     print(f"\ud83d\udce6 発見した通知数: {count}")
 
