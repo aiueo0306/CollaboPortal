@@ -31,13 +31,13 @@ def generate_rss(items, output_path):
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     fg.rss_file(output_path)
-    print(f"\n\u2705 RSSフィード生成完了！\ud83d\udcc4 保存先: {output_path}")
+    print(f"\n✅ RSSフィード生成完了！📄 保存先: {output_path}")
 
 def extract_items(page):
     items = []
-    rows = page.locator("#__layout > div > div > div.container_sWpuv.notifications > div.global-content.content_06Mef > div > div > div.content_NR3Mk > article")
+    rows = page.locator("#__layout article")
     count = rows.count()
-    print(f"\ud83d\udce6 発見した通知数: {count}")
+    print(f"📦 発見した通知数: {count}")
 
     for i in range(count):
         row = rows.nth(i)
@@ -72,26 +72,29 @@ with sync_playwright() as p:
     context = browser.new_context()
     page = context.new_page()
 
-    print("▶ ポータルサイトにアクセス中...")
-    page.goto(START_URL)
+    try:
+        print("▶ ポータルサイトにアクセス中...")
+        page.goto(START_URL)
 
-    page.wait_for_url("https://login-id.dx-utility.com/login*", timeout=20000)
-    print("▶ ログイン情報を入力中...")
-    page.fill('input[type="email"]', EMAIL)
-    page.click('button[type="submit"]')
-    page.wait_for_selector('input[type="password"]', timeout=10000)
-    page.fill('input[type="password"]', PASSWORD)
-    page.click('button[type="submit"]')
+        page.wait_for_url("https://login-id.dx-utility.com/login*", timeout=20000)
+        print("▶ ログイン情報を入力中...")
+        page.fill('input#email', EMAIL)
+        page.click('button[type="submit"]')
+        page.wait_for_selector('input#password', timeout=10000)
+        page.fill('input#password', PASSWORD)
+        page.click('button[type="submit"]')
 
-    page.wait_for_url("https://dx.collaboportal.com*", timeout=20000)
-    print("✅ ログイン完了。ページ取得中...")
-    page.wait_for_load_state("networkidle")
+        page.wait_for_url("https://dx.collaboportal.com*", timeout=20000)
+        print("✅ ログイン完了。ページ取得中...")
+        page.wait_for_load_state("networkidle")
 
-    items = extract_items(page)
+        items = extract_items(page)
 
-    if not items:
-        print("⚠ 通知が取得できませんでした。")
+        if not items:
+            print("⚠ 通知が取得できませんでした。")
 
-    rss_path = "rss_output/dxportal_notifications.xml"
-    generate_rss(items, rss_path)
-    browser.close()
+        rss_path = "rss_output/dxportal_notifications.xml"
+        generate_rss(items, rss_path)
+
+    finally:
+        browser.close()
