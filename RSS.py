@@ -83,7 +83,14 @@ with sync_playwright() as p:
         page.fill('input#password', PASSWORD)
         page.get_by_role("button", name="ログインする").click()
 
-        # URLの待機の代わりに要素で判定
+        # モーダルがあれば閉じる
+        try:
+            page.click('button[data-dismiss="modal"]', timeout=5000)
+            print("▶ モーダルを閉じました。")
+        except PlaywrightTimeoutError:
+            print("▶ モーダルは表示されていませんでした。")
+
+        # 通知情報が表示されるまで待機
         page.wait_for_selector("#__layout article", timeout=20000)
         print("✅ ログイン完了。ページ取得中...")
         page.wait_for_load_state("networkidle")
