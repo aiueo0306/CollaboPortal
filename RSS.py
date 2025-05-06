@@ -97,7 +97,7 @@ with sync_playwright() as p:
 
         html = page.content()
         with open("debug_page.html", "w", encoding="utf-8") as f:
-        f.write(html)
+             f.write(html)
         print("📄 HTMLダンプを保存しました。")
         
         # 通知情報が表示されるまで待機
