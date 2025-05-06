@@ -90,7 +90,11 @@ with sync_playwright() as p:
         except PlaywrightTimeoutError:
             print("▶ モーダルは表示されていませんでした。")
 
+        # 🟡 ここで notifications ページへ再遷移する
+        print("▶ 通知ページへ遷移中...")
         page.goto(START_URL)
+        page.wait_for_load_state("networkidle")  # ページが安定するまで待機
+
         
         # 通知情報が表示されるまで待機
         page.wait_for_selector("#__layout article", timeout=20000)
