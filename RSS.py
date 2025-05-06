@@ -97,8 +97,7 @@ with sync_playwright() as p:
 
         html = page.content()
         with open("debug_page.html", "w", encoding="utf-8") as f:
-             f.write(html)
-        print("📄 HTMLダンプを保存しました。")
+            f.write(html)  # ← この行をインデントして中に入れる        print("📄 HTMLダンプを保存しました。")
         
         # 通知情報が表示されるまで待機
         page.wait_for_selector("#__layout article", timeout=20000)
