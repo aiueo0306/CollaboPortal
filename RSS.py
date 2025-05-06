@@ -79,7 +79,6 @@ with sync_playwright() as p:
         page.wait_for_url("https://login-id.dx-utility.com/login*", timeout=20000)
         print("▶ ログイン情報を入力中...")
         page.fill('input#email', EMAIL)
-        page.click('button[type="submit"]')
         page.wait_for_selector('input#password', timeout=10000)
         page.fill('input#password', PASSWORD)
         page.get_by_role("button", name="ログインする").click()
