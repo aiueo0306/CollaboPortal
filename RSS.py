@@ -68,7 +68,7 @@ def extract_items(page):
 # ===== 実行ブロック =====
 with sync_playwright() as p:
     print("▶ ブラウザを起動中...")
-    browser = p.chromium.launch(headless=ture)
+    browser = p.chromium.launch(headless=true)
     context = browser.new_context()
     page = context.new_page()
 
