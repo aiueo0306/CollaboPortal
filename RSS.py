@@ -98,3 +98,4 @@ with sync_playwright() as p:
 
     print("⏹ 処理終了。ブラウザを閉じます。")
     browser.close()
+    
