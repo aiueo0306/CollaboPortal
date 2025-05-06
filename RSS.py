@@ -90,6 +90,8 @@ with sync_playwright() as p:
         except PlaywrightTimeoutError:
             print("▶ モーダルは表示されていませんでした。")
 
+        page.goto(START_URL)
+        
         # 通知情報が表示されるまで待機
         page.wait_for_selector("#__layout article", timeout=20000)
         print("✅ ログイン完了。ページ取得中...")
