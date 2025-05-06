@@ -82,7 +82,7 @@ with sync_playwright() as p:
         page.click('button[type="submit"]')
         page.wait_for_selector('input#password', timeout=10000)
         page.fill('input#password', PASSWORD)
-        page.click('button[type="submit"]')
+        page.get_by_role("button", name="ログインする").click()
 
         page.wait_for_url("https://dx.collaboportal.com*", timeout=20000)
         print("✅ ログイン完了。ページ取得中...")
