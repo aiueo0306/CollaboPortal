@@ -95,6 +95,10 @@ with sync_playwright() as p:
         page.goto(START_URL)
         page.wait_for_load_state("networkidle")  # ページが安定するまで待機
 
+        html = page.content()
+        with open("debug_page.html", "w", encoding="utf-8") as f:
+        f.write(html)
+        print("📄 HTMLダンプを保存しました。")
         
         # 通知情報が表示されるまで待機
         page.wait_for_selector("#__layout article", timeout=20000)
