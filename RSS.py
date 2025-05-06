@@ -11,14 +11,13 @@ PASSWORD = "sota0306!"
 BASE_URL = "https://dx.collaboportal.com"
 DEFAULT_LINK = BASE_URL + "/notifications"
 
-# 保存先のGitHub上のrss_outputパス（ローカル上で管理されている前提）
+# 保存先のパス（GitHubリポジトリ配下のフォルダなどを想定）
 OUTPUT_DIR = "rss_output"
 OUTPUT_FILENAME = "notifications.xml"
 OUTPUT_PATH = os.path.join(OUTPUT_DIR, OUTPUT_FILENAME)
 
 # 通知のXML保存関数
 def save_as_xml(items, output_path):
-    # 保存先のフォルダがなければ作成
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     rss = ET.Element("rss", version="2.0")
@@ -40,6 +39,7 @@ def save_as_xml(items, output_path):
 
 # 通知一覧の抽出関数
 def extract_items(page):
+    # 通知リストの表示を待つ（明示的に待機）
     page.wait_for_selector("#__layout article", timeout=60000)
     rows = page.locator("#__layout article")
     count = rows.count()
@@ -49,11 +49,16 @@ def extract_items(page):
     for i in range(count):
         row = rows.nth(i)
         try:
+            # タイトル
             title = row.locator("a > h2").inner_text().strip()
-            description = ""
+
+            # リンク
             link_elem = row.locator("a")
             href = link_elem.first.get_attribute("href")
             link = urljoin(BASE_URL, href) if href else DEFAULT_LINK
+
+            # 説明と日付（未取得の場合は仮値）
+            description = ""
             pub_date = datetime.now(timezone.utc)
 
             items.append({
@@ -69,22 +74,33 @@ def extract_items(page):
 
 # メイン処理
 with sync_playwright() as p:
-    browser = p.chromium.launch(headless=True)
-    context = browser.new_context()
+    browser = p.chromium.launch(headless=True)  # headless=False で可視化も可能
+    context = browser.new_context(
+        viewport={"width": 1280, "height": 800},
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+    )
     page = context.new_page()
 
+    # ログインページにアクセス
     page.goto(LOGIN_URL, timeout=60000)
     page.wait_for_selector('#email', timeout=60000)
     page.fill('#email', USERNAME)
     page.wait_for_selector('#password', timeout=60000)
     page.fill('#password', PASSWORD)
+
+    # ログインボタンをクリック
     page.get_by_role("button", name="ログインする").click()
 
+    # ログイン後ページ遷移を明示的に待機
     page.wait_for_url("https://dx.collaboportal.com/**", timeout=60000)
     print("✅ ログイン完了")
+    print(f"📍 遷移先URL: {page.url}")
 
+    # 通知ページに遷移し表示待機
     page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
+    page.wait_for_selector("#__layout article", timeout=60000)
 
+    # 通知抽出とXML保存
     items = extract_items(page)
     save_as_xml(items, OUTPUT_PATH)
 
