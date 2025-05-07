@@ -76,21 +76,21 @@ with sync_playwright() as p:
     page = context.new_page()
 
     # ログインページへアクセス
-    page.goto(LOGIN_URL, timeout=60000)
-    page.wait_for_selector('#email', timeout=60000)
+    page.goto(LOGIN_URL, timeout=120000)
+    page.wait_for_selector('#email', timeout=120000)
     page.fill('#email', USERNAME)
-    page.wait_for_selector('#password', timeout=60000)
+    page.wait_for_selector('#password', timeout=120000)
     page.fill('#password', PASSWORD)
     page.get_by_role("button", name="ログインする").click()
 
     # ✅ ログイン後のリダイレクト完了を待機
-    page.wait_for_url("https://dx.collaboportal.com/?opt=redirect&code=*", timeout=10000)
+    page.wait_for_url("https://dx.collaboportal.com/?opt=redirect&code=*", timeout=60000)
     print("✅ ログイン完了")
     print(f"📍 遷移先URL: {page.url}")
 
     # ✅ 通知ページへ遷移し、記事を明示的に待つ
-    page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
-    page.wait_for_selector("article a > h2", timeout=60000)
+    page.goto("https://dx.collaboportal.com/notifications", timeout=120000)
+    page.wait_for_selector("article a > h2", timeout=120000)
 
     # 通知の抽出と保存
     items = extract_items(page)
