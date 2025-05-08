@@ -38,9 +38,8 @@ def save_as_xml(items, output_path):
     print(f"✅ XMLファイルを保存しました: {output_path}")
 
 def extract_items(page):
-    ARTICLE_SELECTOR = "div.container_sWpuv.notifications article"
-    page.wait_for_selector(f"{ARTICLE_SELECTOR} a > h2", timeout=60000)
-    rows = page.locator(ARTICLE_SELECTOR)
+    selector=" article"
+    rows = page.locator(selector)
     count = rows.count()
     print(f"📦 発見した通知数: {count}")
 
