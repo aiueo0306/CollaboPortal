@@ -93,6 +93,8 @@ with sync_playwright() as p:
     page.wait_for_url("https://dx.collaboportal.com/?opt=redirect&code=*", timeout=60000)
     print("✅ ログイン完了")
     
+    page.wait_for_url("https://dx.collaboportal.com/", timeout=60000)
+    
     # ✅ 通知ページへ遷移し、記事を明示的に待つ
     page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
     page.wait_for_selector("div.content_NR3Mk", timeout=60000)
