@@ -102,9 +102,15 @@ with sync_playwright() as p:
     # ✅ 通知ページへ遷移し、記事を明示的に待つ
     page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
     #page.wait_for_selector("div.content_NR3Mk", timeout=60000)
+
+    cookies = context.cookies()
+    print("現在のクッキー:", cookies)
     
     import time
     time.sleep(20)
+
+    cookies_after = context.cookies()
+    print("通知ページアクセス後のクッキー:", cookies_after)
     
     # 通知の抽出と保存
     items = extract_items(page)
