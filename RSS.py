@@ -87,17 +87,13 @@ with sync_playwright() as p:
     page.wait_for_url("https://dx.collaboportal.com/?opt=redirect&code=*", timeout=60000)
     print("✅ ログイン完了")
     print(f"📍 遷移先URL: {page.url}")
-
-    print("うんこたれ")
     
     # ✅ 通知ページへ遷移し、記事を明示的に待つ
     page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
+    page.wait_for_selector("div.content_NR3Mk", timeout=60000)
 
-    print(page.url)
     print("くそったれ")
     
-    page.wait_for_selector("article", timeout=60000)
-
     # 通知の抽出と保存
     items = extract_items(page)
     save_as_xml(items, OUTPUT_PATH)
