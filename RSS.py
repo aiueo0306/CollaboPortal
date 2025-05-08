@@ -38,8 +38,7 @@ def save_as_xml(items, output_path):
     print(f"✅ XMLファイルを保存しました: {output_path}")
 
 def extract_items(page):
-    selector=" article"
-    rows = page.locator(selector)
+    rows = page.locator("article:nth-child(1)")
     count = rows.count()
     print(f"📦 発見した通知数: {count}")
 
