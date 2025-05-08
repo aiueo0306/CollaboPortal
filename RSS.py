@@ -39,37 +39,37 @@ def save_as_xml(items, output_path):
 
 # 通知一覧の抽出関数
 def extract_items(page):
-    page.wait_for_selector("article:nth-child(1)", timeout=60000)
-    rows = page.locator("article:nth-child(1)")
-    count = rows.count()
-    print(f"📦 発見した通知数: {count}")
+    # ✅ 改善されたセレクタ
+ARTICLE_SELECTOR = "div.container_sWpuv.notifications article"
 
-    import sys
-    print("終了します")
-    sys.exit()
+# ✅ 通知ページへ遷移し、記事を明示的に待つ
+page.goto("https://dx.collaboportal.com/notifications", timeout=120000)
+page.wait_for_selector(f"{ARTICLE_SELECTOR} a > h2", timeout=120000)
 
-    
-    items = []
-    for i in range(count):
-        row = rows.nth(i)
-        try:
-            title = row.locator("a > h2").inner_text().strip()
-            link_elem = row.locator("a")
-            href = link_elem.first.get_attribute("href")
-            link = urljoin(BASE_URL, href) if href else DEFAULT_LINK
-            description = ""
-            pub_date = datetime.now(timezone.utc)
+# 通知の抽出と保存
+rows = page.locator(ARTICLE_SELECTOR)
+items = []
+count = rows.count()
+print(f"📦 発見した通知数: {count}")
 
-            items.append({
-                "title": title,
-                "link": link,
-                "description": description,
-                "pub_date": pub_date
-            })
-        except Exception as e:
-            print(f"⚠ 通知{i+1}の解析に失敗: {e}")
-            continue
-    return items
+for i in range(count):
+    row = rows.nth(i)
+    try:
+        title = row.locator("a > h2").inner_text().strip()
+        link_elem = row.locator("a")
+        href = link_elem.first.get_attribute("href")
+        link = urljoin(BASE_URL, href) if href else DEFAULT_LINK
+        description = ""
+        pub_date = datetime.now(timezone.utc)
+
+        items.append({
+            "title": title,
+            "link": link,
+            "description": description,
+            "pub_date": pub_date
+        })
+    except Exception as e:
+        print(f"⚠ 通知{i+1}の解析に失敗: {e}")
 
 # メイン処理
 with sync_playwright() as p:
@@ -94,8 +94,8 @@ with sync_playwright() as p:
     print(f"📍 遷移先URL: {page.url}")
 
     # ✅ 通知ページへ遷移し、記事を明示的に待つ
-    page.goto("https://dx.collaboportal.com/notifications", timeout=120000)
-    page.wait_for_selector("article a > h2", timeout=120000)
+    page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
+    page.wait_for_selector("article", timeout=60000)
 
     # 通知の抽出と保存
     items = extract_items(page)
