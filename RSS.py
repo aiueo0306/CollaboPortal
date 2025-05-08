@@ -38,7 +38,7 @@ def save_as_xml(items, output_path):
     print(f"✅ XMLファイルを保存しました: {output_path}")
 
 def extract_items(page):
-    rows = page.locator("a > h2")
+    rows = page.locator("div.modal2Footer_fq3pm > div > button")
     count = rows.count()
     print(f"📦 発見した通知数: {count}")
 
@@ -90,8 +90,6 @@ with sync_playwright() as p:
     # ✅ 通知ページへ遷移し、記事を明示的に待つ
     page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
     #page.wait_for_selector("div.content_NR3Mk", timeout=60000)
-
-    print("くそったれ")
     
     # 通知の抽出と保存
     items = extract_items(page)
