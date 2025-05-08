@@ -42,6 +42,8 @@ def extract_items(page):
     count = rows.count()
     print(f"📦 発見した通知数: {count}")
 
+    print(page.url)
+    
     items = []
     for i in range(count):
         row = rows.nth(i)
