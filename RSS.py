@@ -89,11 +89,11 @@ with sync_playwright() as p:
     print(f"📍 遷移先URL: {page.url}")
 
     print("うんこたれ")
-    print(page.url)
     
     # ✅ 通知ページへ遷移し、記事を明示的に待つ
     page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
-    
+
+    print(page.url)
     print("くそったれ")
     
     page.wait_for_selector("article", timeout=60000)
