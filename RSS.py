@@ -39,8 +39,8 @@ def save_as_xml(items, output_path):
 
 # 通知一覧の抽出関数
 def extract_items(page):
-    page.wait_for_selector("article a > h2", timeout=60000)
-    rows = page.locator("article")
+    page.wait_for_selector("article:nth-child(1)", timeout=60000)
+    rows = page.locator("article:nth-child(1)")
     count = rows.count()
     print(f"📦 発見した通知数: {count}")
 
