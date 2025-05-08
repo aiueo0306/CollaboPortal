@@ -45,6 +45,10 @@ def extract_items(page):
     html_content = page.content()
     print(html_content)
 
+    print("🌐 ページ内のフレーム一覧:")
+    for frame in page.frames:
+        print(f"▶ Frame: URL={frame.url} Name={frame.name}")
+    
     import sys
 
     print("ここまで実行")
@@ -97,7 +101,7 @@ with sync_playwright() as p:
     
     # ✅ 通知ページへ遷移し、記事を明示的に待つ
     page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
-    page.wait_for_selector("div.content_NR3Mk", timeout=60000)
+    #page.wait_for_selector("div.content_NR3Mk", timeout=60000)
     
     # 通知の抽出と保存
     items = extract_items(page)
