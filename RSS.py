@@ -43,6 +43,11 @@ def extract_items(page):
     print(f"📦 発見した通知数: {count}")
 
     print(page.url)
+
+    import sys
+
+    print("ここまで実行")
+    sys.exit()
     
     items = []
     for i in range(count):
