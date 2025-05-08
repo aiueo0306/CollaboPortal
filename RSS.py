@@ -103,6 +103,7 @@ with sync_playwright() as p:
     page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
     #page.wait_for_selector("div.content_NR3Mk", timeout=60000)
     
+    import time
     time.sleep(20)
     
     # 通知の抽出と保存
