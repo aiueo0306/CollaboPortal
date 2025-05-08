@@ -42,7 +42,8 @@ def extract_items(page):
     count = rows.count()
     print(f"📦 発見した通知数: {count}")
 
-    print(page.url)
+    html_content = page.content()
+    print(html_content)
 
     import sys
 
