@@ -106,7 +106,7 @@ with sync_playwright() as p:
         if "api.collaboportal.com" in response.url:
            print(f"🌐 API呼び出し: {response.url} ステータス: {response.status}")
 
-    #page.on("response", handle_response)
+    page.on("response", handle_response)
     
     # ログインページへアクセス
     page.goto(LOGIN_URL, timeout=60000)
