@@ -105,12 +105,16 @@ with sync_playwright() as p:
 
     cookies = context.cookies()
     print("現在のクッキー:", cookies)
+    title = page.title()
+    print(f"✅ 現在のページタイトル: {title}")
     
     import time
     time.sleep(20)
 
     cookies_after = context.cookies()
     print("通知ページアクセス後のクッキー:", cookies_after)
+    title = page.title()
+    print(f"✅ 現在のページタイトル: {title}")
     
     # 通知の抽出と保存
     items = extract_items(page)
