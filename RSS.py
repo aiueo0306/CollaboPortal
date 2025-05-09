@@ -44,10 +44,10 @@ def extract_items(page):
     count = rows.count()
     print(f"📦 発見した通知数: {count}")
     
-    import sys
+    #import sys
 
-    print("ここまで実行")
-    sys.exit()
+    #print("ここまで実行")
+    #sys.exit()
     
     items = []
     for i in range(count):
