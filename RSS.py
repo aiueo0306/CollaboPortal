@@ -151,8 +151,8 @@ with sync_playwright() as p:
     title = page.title()
     print(f"✅ 現在のページタイトル: {title}")
     
-    #print("⏳ 20秒間待機中...")
-    #time.sleep(20)
+    print("⏳ 10秒間待機中...")
+    time.sleep(10)
 
     title = page.title()
     print(f"✅ 現在のページタイトル: {title}")
