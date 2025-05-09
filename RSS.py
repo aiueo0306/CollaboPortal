@@ -43,13 +43,6 @@ def extract_items(page):
     rows = page.locator("div.content_NR3Mk")
     count = rows.count()
     print(f"📦 発見した通知数: {count}")
-
-    html_content = page.content()
-    print(html_content)
-
-    print("🌐 ページ内のフレーム一覧:")
-    for frame in page.frames:
-        print(f"▶ Frame: URL={frame.url} Name={frame.name}")
     
     import sys
 
@@ -146,20 +139,14 @@ with sync_playwright() as p:
     # ✅ 通知ページへ遷移し、記事を明示的に待つ
     page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
 
-    local_storage = page.evaluate("() => Object.entries(localStorage)")
-    print("🗄 ローカルストレージ:", local_storage)
-
-    session_storage = page.evaluate("() => Object.entries(sessionStorage)")
-    print("🗄 セッションストレージ:", session_storage)
+    title = page.title()
+    print(f"✅ 現在のページタイトル: {title}")
     
     print("⏳ 20秒間待機中...")
     time.sleep(20)
 
-    local_storage = page.evaluate("() => Object.entries(localStorage)")
-    print("🗄 ローカルストレージ:", local_storage)
-
-    session_storage = page.evaluate("() => Object.entries(sessionStorage)")
-    print("🗄 セッションストレージ:", session_storage)
+    title = page.title()
+    print(f"✅ 現在のページタイトル: {title}")
     
     # 通知の抽出と保存
     items = extract_items(page)
