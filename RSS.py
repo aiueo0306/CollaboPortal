@@ -102,6 +102,12 @@ with sync_playwright() as p:
         Object.defineProperty(navigator, 'languages', {get: () => ['ja-JP', 'ja']});
     """)
 
+    def handle_response(response):
+        if "api.collaboportal.com" in response.url:
+           print(f"🌐 API呼び出し: {response.url} ステータス: {response.status}")
+
+    page.on("response", handle_response)
+    
     # ログインページへアクセス
     page.goto(LOGIN_URL, timeout=60000)
 
