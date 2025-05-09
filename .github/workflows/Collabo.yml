@@ -2,7 +2,7 @@ name: Update RSS feed every hour
 
 on:
   schedule:
-    - cron: '0 * * * *'  # 毎時0分に実行（UTC）
+    - cron: '0 */3 * * *'  # 毎時0分に実行（UTC）
   workflow_dispatch:      # 手動実行も可能
 
 jobs:
