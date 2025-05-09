@@ -145,6 +145,9 @@ with sync_playwright() as p:
     # ✅ 通知ページへ遷移し、記事を明示的に待つ
     page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
 
+    # ✅ ページが完全に読み込まれるまで待つ
+    page.wait_for_load_state("networkidle")
+    
     title = page.title()
     print(f"✅ 現在のページタイトル: {title}")
     
