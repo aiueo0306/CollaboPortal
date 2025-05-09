@@ -103,18 +103,29 @@ with sync_playwright() as p:
     page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
     #page.wait_for_selector("div.content_NR3Mk", timeout=60000)
 
-    cookies = context.cookies()
-    print("現在のクッキー:", cookies)
-    title = page.title()
-    print(f"✅ 現在のページタイトル: {title}")
+    #cookies = context.cookies()
+    #print("現在のクッキー:", cookies)
+    #title = page.title()
+    #print(f"✅ 現在のページタイトル: {title}")
+    local_storage = page.evaluate("() => Object.entries(localStorage)")
+    print("🗄 ローカルストレージ:", local_storage)
+
+    session_storage = page.evaluate("() => Object.entries(sessionStorage)")
+    print("🗄 セッションストレージ:", session_storage)
     
     import time
     time.sleep(20)
 
-    cookies_after = context.cookies()
-    print("通知ページアクセス後のクッキー:", cookies_after)
-    title = page.title()
-    print(f"✅ 現在のページタイトル: {title}")
+    #cookies_after = context.cookies()
+    #print("通知ページアクセス後のクッキー:", cookies_after)
+    #title = page.title()
+    #print(f"✅ 現在のページタイトル: {title}")
+
+    local_storage = page.evaluate("() => Object.entries(localStorage)")
+    print("🗄 ローカルストレージ:", local_storage)
+
+    session_storage = page.evaluate("() => Object.entries(sessionStorage)")
+    print("🗄 セッションストレージ:", session_storage)
     
     # 通知の抽出と保存
     items = extract_items(page)
