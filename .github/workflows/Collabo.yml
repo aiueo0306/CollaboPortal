@@ -1,8 +1,8 @@
-name: Update RSS feed every hour
+name: Update RSS feed every ~2-4 hours (randomized)
 
 on:
   schedule:
-    - cron: '0 */3 * * *'  # 毎時0分に実行（UTC）
+    - cron: '0 */2 * * *'  # 2時間おきに起動（UTC）
   workflow_dispatch:      # 手動実行も可能
 
 jobs:
@@ -24,10 +24,19 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          playwright install chromium  # ← Playwrightブラウザをインストール
+          playwright install chromium  # Playwrightブラウザをインストール
+
+      - name: Random delay before running
+        run: |
+          # 2時間（7200秒）～4時間（14400秒）の範囲でランダム待機
+          MIN_WAIT=7200
+          MAX_WAIT=14400
+          WAIT_TIME=$(( RANDOM % (MAX_WAIT - MIN_WAIT + 1) + MIN_WAIT ))
+          echo "Sleeping for $WAIT_TIME seconds (~$((WAIT_TIME/60)) minutes)"
+          sleep $WAIT_TIME
 
       - name: Run RSS Generator
-        run: python RSS.py  # ← ファイル名を適宜変更
+        run: python RSS.py  # ファイル名を適宜変更
 
       - name: Commit and push changes
         run: |
