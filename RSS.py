@@ -159,11 +159,8 @@ with sync_playwright() as p:
 
     page.wait_for_url("**/notifications", timeout=60000)
 
-print("✅ 通知ページへ移動")
-print("通知ページURL:", page.url)
-print("通知ページTITLE:", page.title())
-
-    print("通知ページ移動後URL:", page.url)
+    print("✅ 通知ページへ移動")
+    print("通知ページURL:", page.url)
     print("通知ページTITLE:", page.title())
     
     if "login-id.dx-utility.com" in page.url:
