@@ -6,58 +6,98 @@ from urllib.parse import urljoin
 import random
 import time
 
-# ログイン情報とURL設定
+# ============================================================
+# 設定
+# ============================================================
+
 LOGIN_URL = "https://dx.collaboportal.com/"
-USERNAME = "sato.sota@create-sd.co.jp"
-PASSWORD = "sota0306!"
+USERNAME = "YOUR_USERNAME"
+PASSWORD = "YOUR_PASSWORD"
+
 BASE_URL = "https://dx.collaboportal.com"
 DEFAULT_LINK = BASE_URL + "/notifications"
 
-# 保存先のパス（GitHub上のフォルダを想定）
 OUTPUT_DIR = "rss_output"
 OUTPUT_FILENAME = "notifications.xml"
 OUTPUT_PATH = os.path.join(OUTPUT_DIR, OUTPUT_FILENAME)
 
-# 通知のXML保存関数
+
+# ============================================================
+# RSS XML保存
+# ============================================================
+
 def save_as_xml(items, output_path):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     rss = ET.Element("rss", version="2.0")
     channel = ET.SubElement(rss, "channel")
+
     ET.SubElement(channel, "title").text = "Collabo Portal Notifications"
     ET.SubElement(channel, "link").text = DEFAULT_LINK
     ET.SubElement(channel, "description").text = "通知一覧"
 
     for item in items:
         entry = ET.SubElement(channel, "item")
+
         ET.SubElement(entry, "title").text = item["title"]
         ET.SubElement(entry, "link").text = item["link"]
         ET.SubElement(entry, "description").text = item["description"]
-        ET.SubElement(entry, "pubDate").text = item["pub_date"].strftime("%a, %d %b %Y %H:%M:%S +0000")
+
+        ET.SubElement(entry, "pubDate").text = (
+            item["pub_date"].strftime(
+                "%a, %d %b %Y %H:%M:%S +0000"
+            )
+        )
 
     tree = ET.ElementTree(rss)
-    tree.write(output_path, encoding="utf-8", xml_declaration=True)
+
+    tree.write(
+        output_path,
+        encoding="utf-8",
+        xml_declaration=True
+    )
+
     print(f"✅ XMLファイルを保存しました: {output_path}")
 
-def extract_items(page):
-    rows = page.locator("div.content_NR3Mk > article")
-    count = rows.count()
-    print(f"📦 発見した通知数: {count}")
-    
-    #import sys
 
-    #print("ここまで実行")
-    #sys.exit()
-    
+# ============================================================
+# 通知取得
+# ============================================================
+
+def extract_items(page):
+
+    rows = page.locator("div.content_NR3Mk > article")
+
+    count = rows.count()
+
+    print(f"📦 発見した通知数: {count}")
+
     items = []
+
     for i in range(count):
+
         row = rows.nth(i)
+
         try:
-            title = row.locator("a > h2").inner_text().strip()
+
+            title = (
+                row
+                .locator("a > h2")
+                .inner_text()
+                .strip()
+            )
+
             link_elem = row.locator("a")
+
             href = link_elem.first.get_attribute("href")
-            link = urljoin(BASE_URL, href) if href else DEFAULT_LINK
+
+            if href:
+                link = urljoin(BASE_URL, href)
+            else:
+                link = DEFAULT_LINK
+
             description = ""
+
             pub_date = datetime.now(timezone.utc)
 
             items.append({
@@ -66,13 +106,22 @@ def extract_items(page):
                 "description": description,
                 "pub_date": pub_date
             })
+
         except Exception as e:
-            print(f"⚠ 通知{i+1}の解析に失敗: {e}")
-            continue
+
+            print(
+                f"⚠ 通知{i + 1}の解析に失敗: {e}"
+            )
+
     return items
 
+
+# ============================================================
 # メイン処理
+# ============================================================
+
 with sync_playwright() as p:
+
     browser = p.chromium.launch(
         headless=True,
         args=[
@@ -85,127 +134,305 @@ with sync_playwright() as p:
             "--profile-directory=Default",
         ]
     )
+
     context = browser.new_context(
-        viewport={"width": 1366, "height": 768},
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        viewport={
+            "width": 1366,
+            "height": 768
+        },
+        user_agent=(
+            "Mozilla/5.0 "
+            "(Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 "
+            "(KHTML, like Gecko) "
+            "Chrome/124.0.0.0 "
+            "Safari/537.36"
+        ),
         java_script_enabled=True,
         bypass_csp=True,
         ignore_https_errors=True,
         locale="ja-JP",
     )
+
     page = context.new_page()
 
-    # ✅ Bot検知対策: navigator や plugins を偽装
+
+    # ========================================================
+    # Bot検知対策
+    # ========================================================
+
     page.add_init_script("""
-        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-        Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
-        Object.defineProperty(navigator, 'languages', {get: () => ['ja-JP', 'ja']});
+        Object.defineProperty(
+            navigator,
+            'webdriver',
+            {get: () => undefined}
+        );
+
+        Object.defineProperty(
+            navigator,
+            'plugins',
+            {get: () => [1, 2, 3, 4, 5]}
+        );
+
+        Object.defineProperty(
+            navigator,
+            'languages',
+            {get: () => ['ja-JP', 'ja']}
+        );
     """)
 
+
+    # ========================================================
+    # API通信ログ
+    # ========================================================
+
     def handle_response(response):
+
         if "api.collaboportal.com" in response.url:
-           print(f"🌐 API呼び出し: {response.url} ステータス: {response.status}")
+
+            print(
+                f"🌐 API呼び出し: "
+                f"{response.url} "
+                f"ステータス: {response.status}"
+            )
 
     page.on("response", handle_response)
-    
+
+
+    # ========================================================
     # ログインページへアクセス
-    page.goto(LOGIN_URL, timeout=60000)
+    # ========================================================
 
-    # ランダムな待機で人間ぽさUP
+    print("========== LOGIN START ==========")
+
+    page.goto(
+        LOGIN_URL,
+        timeout=60000
+    )
+
+    print("ログイン画面URL:", page.url)
+    print("ログイン画面TITLE:", page.title())
+
+
+    # ========================================================
+    # メールアドレス入力
+    # ========================================================
+
     delay = random.uniform(2, 4)
-    print(f"⏳ メール入力前に {delay:.2f} 秒待機")
+
+    print(
+        f"⏳ メール入力前に "
+        f"{delay:.2f} 秒待機"
+    )
+
     time.sleep(delay)
 
-    page.wait_for_selector('#email', timeout=60000)
-    page.fill('#email', USERNAME)
+    page.wait_for_selector(
+        "#email",
+        timeout=60000
+    )
+
+    page.fill(
+        "#email",
+        USERNAME
+    )
+
+
+    # ========================================================
+    # パスワード入力
+    # ========================================================
 
     delay = random.uniform(1, 3)
-    print(f"⏳ パスワード入力前に {delay:.2f} 秒待機")
+
+    print(
+        f"⏳ パスワード入力前に "
+        f"{delay:.2f} 秒待機"
+    )
+
     time.sleep(delay)
 
-    page.wait_for_selector('#password', timeout=60000)
-    page.fill('#password', PASSWORD)
+    page.wait_for_selector(
+        "#password",
+        timeout=60000
+    )
+
+    page.fill(
+        "#password",
+        PASSWORD
+    )
+
+
+    # ========================================================
+    # ログイン
+    # ========================================================
 
     delay = random.uniform(1, 3)
-    print(f"⏳ ログインボタンクリック前に {delay:.2f} 秒待機")
+
+    print(
+        f"⏳ ログインボタンクリック前に "
+        f"{delay:.2f} 秒待機"
+    )
+
     time.sleep(delay)
 
-    page.get_by_role("button", name="ログインする").click()
+    page.get_by_role(
+        "button",
+        name="ログインする"
+    ).click()
 
-    # ✅ ログイン後のリダイレクト完了を待機
-    page.wait_for_url("https://dx.collaboportal.com/?opt=redirect&code=*", timeout=60000)
-    print("✅ ログイン完了")
 
-    print("ログイン後URL:", page.url)
+    # ========================================================
+    # 認証コード付きURLを待つ
+    # ========================================================
+
+    page.wait_for_url(
+        "https://dx.collaboportal.com/?opt=redirect&code=*",
+        timeout=60000
+    )
+
+    print("✅ 認証コード付きURLへ到達")
+    print("認証直後URL:", page.url)
+
+
+    # ========================================================
+    # Collabo Portalトップページを待つ
+    # ========================================================
+
+    page.wait_for_url(
+        "https://dx.collaboportal.com/",
+        timeout=60000
+    )
+
+    print("✅ Collabo Portalトップページへ到達")
+    print("トップページURL:", page.url)
+    print("トップページTITLE:", page.title())
+
+
+    # ========================================================
+    # Cookie確認
+    # ========================================================
 
     cookies = context.cookies()
-    print("Cookie数:", len(cookies))
 
-    for c in cookies:
-        print("COOKIE:", c["name"], c["domain"])
-    
-    page.wait_for_url("https://dx.collaboportal.com/", timeout=60000)
+    print("")
+    print("========== COOKIE ==========")
 
-    delay = random.uniform(2, 4)
-    print(f"⏳ 通知ページ移動前に {delay:.2f} 秒待機")
-    time.sleep(delay)
+    print(
+        "Cookie数:",
+        len(cookies)
+    )
 
-    # ✅ SPAの画面遷移を使って通知ページへ移動
-    notification_link = page.locator('a[href="/notifications"]').first
+    for cookie in cookies:
 
-    print("通知リンク数:", page.locator('a[href="/notifications"]').count())
+        print(
+            "COOKIE:",
+            cookie["name"],
+            cookie["domain"]
+        )
 
-    notification_link.click()
+    print("============================")
+    print("")
 
-    page.wait_for_url("**/notifications", timeout=60000)
 
-    print("✅ 通知ページへ移動")
-    print("通知ページURL:", page.url)
-    print("通知ページTITLE:", page.title())
-    
-    if "login-id.dx-utility.com" in page.url:
-        print("❌ 認証状態が維持されておらず、ログイン画面へ戻されています")
-    else:
-        print("✅ 認証状態は維持されています")
-    
-    title = page.title()
-    print(f"✅ 現在のページタイトル: {title}")
-    
-    print("⏳ 10秒間待機中...")
+    # ========================================================
+    # 認証状態が安定するか確認
+    #
+    # ★ここでは通知ページへ移動しない
+    # ★10秒間トップページの状態を確認する
+    # ========================================================
+
+    print(
+        "⏳ ログイン状態確認のため10秒待機..."
+    )
+
     time.sleep(10)
 
-    title = page.title()
-    print(f"✅ 現在のページタイトル: {title}")
+
+    # ========================================================
+    # 10秒後の状態
+    # ========================================================
+
+    print("")
+    print("========== LOGIN DEBUG ==========")
+
+    print(
+        "10秒後URL:",
+        page.url
+    )
+
+    print(
+        "10秒後TITLE:",
+        page.title()
+    )
+
+    notification_links = page.locator(
+        'a[href="/notifications"]'
+    )
+
+    logout_links = page.locator(
+        'a[href*="/logout"]'
+    )
+
+    print(
+        "通知リンク数:",
+        notification_links.count()
+    )
+
+    print(
+        "ログアウトリンク数:",
+        logout_links.count()
+    )
+
+    print(
+        "article総数:",
+        page.locator("article").count()
+    )
+
+    print(
+        "content_NR3Mk数:",
+        page.locator(
+            "div.content_NR3Mk"
+        ).count()
+    )
 
 
-        # ===== デバッグ情報 =====
-    print("\n========== DEBUG START ==========")
-    print(f"URL: {page.url}")
-    print(f"TITLE: {page.title()}")
+    # ========================================================
+    # ログイン画面へ戻されていないか確認
+    # ========================================================
 
-    print(f"article総数: {page.locator('article').count()}")
-    print(f"content_NR3Mk数: {page.locator('div.content_NR3Mk').count()}")
-    print(f"対象article数: {page.locator('div.content_NR3Mk > article').count()}")
+    if "login-id.dx-utility.com" in page.url:
 
-    # content_NR3Mk が存在する場合、その中身をログに表示
-    content = page.locator("div.content_NR3Mk")
+        print(
+            "❌ 10秒以内にログイン画面へ戻されました"
+        )
 
-    if content.count() > 0:
-        print("\n--- content_NR3Mk 内部HTML ---")
-        try:
-            html = content.first.inner_html()
-            print(html[:10000])
-        except Exception as e:
-            print(f"HTML取得失敗: {e}")
+    elif "dx.collaboportal.com" in page.url:
+
+        print(
+            "✅ Collabo Portal内に留まっています"
+        )
+
     else:
-        print("\n⚠ content_NR3Mk 自体が見つかりません")
 
-    print("========== DEBUG END ==========\n")
+        print(
+            "⚠ 想定外のURLへ移動しています"
+        )
 
-    
-    # 通知の抽出と保存
-    items = extract_items(page)
-    save_as_xml(items, OUTPUT_PATH)
+    print("========== DEBUG END ==========")
 
-    print("⏹ 処理終了。ブラウザを閉じます。")
+
+    # ========================================================
+    # 今回は原因調査のため通知ページへ移動しない
+    # ========================================================
+
+    print("")
+    print(
+        "🔍 今回は認証状態確認のため、"
+        "通知ページへの移動・RSS更新は実行しません。"
+    )
+
+    print(
+        "⏹ 処理終了。ブラウザを閉じます。"
+    )
+
     browser.close()
