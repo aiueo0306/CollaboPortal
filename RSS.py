@@ -150,11 +150,18 @@ with sync_playwright() as p:
     print(f"⏳ 通知ページ移動前に {delay:.2f} 秒待機")
     time.sleep(delay)
 
-    # ✅ 通知ページへ遷移し、記事を明示的に待つ
-    page.goto("https://dx.collaboportal.com/notifications", timeout=60000)
+    # ✅ SPAの画面遷移を使って通知ページへ移動
+    notification_link = page.locator('a[href="/notifications"]').first
 
-    # ✅ ページが完全に読み込まれるまで待つ
-    page.wait_for_load_state("networkidle")
+    print("通知リンク数:", page.locator('a[href="/notifications"]').count())
+
+    notification_link.click()
+
+    page.wait_for_url("**/notifications", timeout=60000)
+
+print("✅ 通知ページへ移動")
+print("通知ページURL:", page.url)
+print("通知ページTITLE:", page.title())
 
     print("通知ページ移動後URL:", page.url)
     print("通知ページTITLE:", page.title())
