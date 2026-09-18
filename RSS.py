@@ -13,7 +13,7 @@ import time
 LOGIN_URL = "https://dx.collaboportal.com/"
 
 USERNAME = "sato.sota@create-sd.co.jp"
-PASSWORD = "SOTA0306!"
+PASSWORD = "YOUR_PASSWORD"
 
 BASE_URL = "https://dx.collaboportal.com"
 NOTIFICATIONS_URL = BASE_URL + "/notifications"
@@ -175,16 +175,43 @@ def extract_items(page):
 with sync_playwright() as p:
 
     # ========================================================
-    # Chromium
+    # ★ GitHub Runner上のGoogle Chromeを使用
+    #
+    # Playwright付属Chromiumではなく
+    # channel="chrome" を指定
     # ========================================================
 
+    print("")
+    print(
+        "========== BROWSER START =========="
+    )
+
     browser = p.chromium.launch(
+        channel="chrome",
         headless=True,
         args=[
             "--no-sandbox",
             "--disable-dev-shm-usage"
         ]
     )
+
+    print(
+        "✅ Google Chrome起動"
+    )
+
+    print(
+        "Browser version:",
+        browser.version
+    )
+
+    print(
+        "==================================="
+    )
+
+
+    # ========================================================
+    # Context
+    # ========================================================
 
     context = browser.new_context(
         viewport={
@@ -199,13 +226,11 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # 状態管理
+    # 状態
     # ========================================================
 
     callback_detected = False
     callback_url = None
-
-    collabo_top_detected = False
 
 
     # ========================================================
@@ -216,7 +241,6 @@ with sync_playwright() as p:
 
         global callback_detected
         global callback_url
-        global collabo_top_detected
 
         if frame != page.main_frame:
             return
@@ -229,7 +253,7 @@ with sync_playwright() as p:
         )
 
         # ----------------------------------------------------
-        # 認証callback検知
+        # Collabo Portal callback
         # ----------------------------------------------------
 
         if (
@@ -247,22 +271,13 @@ with sync_playwright() as p:
             print(
                 "🎯 認証callbackを検知"
             )
+
             print(
                 "CALLBACK URL:",
                 url
             )
+
             print("")
-
-        # ----------------------------------------------------
-        # 通常トップページ
-        # ----------------------------------------------------
-
-        if (
-            url.rstrip("/")
-            == "https://dx.collaboportal.com"
-        ):
-
-            collabo_top_detected = True
 
 
     page.on(
@@ -344,6 +359,7 @@ with sync_playwright() as p:
         print(
             "========== REQUEST FAILED END =========="
         )
+
         print("")
 
 
@@ -354,7 +370,7 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # HTTPエラー
+    # HTTP 4xx / 5xx
     # ========================================================
 
     def response_handler(response):
@@ -379,25 +395,35 @@ with sync_playwright() as p:
                 response.url
             )
 
-            print(
-                "METHOD:",
-                response.request.method
-            )
-
             try:
 
-                content_type = response.headers.get(
-                    "content-type",
-                    ""
-                )
-
                 print(
-                    "CONTENT-TYPE:",
-                    content_type
+                    "METHOD:",
+                    response.request.method
                 )
 
             except Exception:
                 pass
+
+            try:
+
+                print(
+                    "CONTENT-TYPE:",
+                    response.headers.get(
+                        "content-type",
+                        ""
+                    )
+                )
+
+            except Exception:
+                pass
+
+            # ------------------------------------------------
+            # body取得
+            #
+            # callback処理と競合する可能性があるので
+            # 失敗しても処理自体は止めない
+            # ------------------------------------------------
 
             try:
 
@@ -421,6 +447,7 @@ with sync_playwright() as p:
             print(
                 "========== HTTP ERROR END =========="
             )
+
             print("")
 
         except Exception as e:
@@ -438,7 +465,7 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # 開始
+    # LOGIN START
     # ========================================================
 
     print("")
@@ -459,7 +486,7 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # ログイン画面待機
+    # ログイン画面
     # ========================================================
 
     try:
@@ -493,7 +520,7 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # ID / Password
+    # ID入力
     # ========================================================
 
     page.locator(
@@ -502,7 +529,14 @@ with sync_playwright() as p:
         USERNAME
     )
 
-    time.sleep(1)
+    page.wait_for_timeout(
+        500
+    )
+
+
+    # ========================================================
+    # Password入力
+    # ========================================================
 
     page.locator(
         "#password"
@@ -510,7 +544,9 @@ with sync_playwright() as p:
         PASSWORD
     )
 
-    time.sleep(1)
+    page.wait_for_timeout(
+        500
+    )
 
 
     # ========================================================
@@ -528,30 +564,86 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # callback検出待機
+    # 認証処理待機
+    #
+    # time.sleep()ではなくPlaywright側のwaitを使用
     # ========================================================
 
     print(
-        "⏳ 認証callback待機..."
+        "⏳ Auth0認証処理待機..."
     )
 
     start_time = time.time()
 
-    while (
-        time.time() - start_time < 60
-        and not callback_detected
-    ):
+    last_url = ""
 
-        time.sleep(0.2)
+    while time.time() - start_time < 60:
+
+        current_url = page.url
+
+        if current_url != last_url:
+
+            print(
+                "🔗 現在URL:",
+                current_url
+            )
+
+            last_url = current_url
+
+
+        # ----------------------------------------------------
+        # callback検知済み
+        # ----------------------------------------------------
+
+        if callback_detected:
+
+            print(
+                "✅ callback検知済み"
+            )
+
+            break
+
+
+        # ----------------------------------------------------
+        # callbackイベントより先に
+        # Collabo Portalへ戻った場合も成功扱い
+        # ----------------------------------------------------
+
+        if (
+            current_url.startswith(
+                BASE_URL
+            )
+            and "login-id.dx-utility.com"
+            not in current_url
+            and "id.dx-utility.com"
+            not in current_url
+        ):
+
+            # 最初のトップページ表示直後は除外
+            if time.time() - start_time > 2:
+
+                print(
+                    "✅ Collabo Portalへの帰還を確認"
+                )
+
+                callback_detected = True
+                callback_url = current_url
+
+                break
+
+
+        page.wait_for_timeout(
+            250
+        )
 
 
     # ========================================================
-    # callback結果
+    # 認証結果
     # ========================================================
 
     print("")
     print(
-        "========== CALLBACK RESULT =========="
+        "========== AUTH RESULT =========="
     )
 
     print(
@@ -559,31 +651,44 @@ with sync_playwright() as p:
         callback_detected
     )
 
-    if callback_url:
-
-        print(
-            "callback URL:",
-            callback_url
-        )
-
     print(
         "現在URL:",
         page.url
     )
 
+    try:
+
+        print(
+            "TITLE:",
+            page.title()
+        )
+
+    except Exception:
+        pass
+
     print(
-        "====================================="
+        "================================="
     )
 
 
     # ========================================================
-    # callbackが来なければ終了
+    # 認証失敗
     # ========================================================
 
     if not callback_detected:
 
+        print("")
         print(
-            "❌ Collabo Portalへのcallbackを確認できませんでした"
+            "❌ Google Chromeでも認証callbackを確認できませんでした"
+        )
+
+        print(
+            "RSSは更新しません"
+        )
+
+        # responseイベントのログが出切る時間を少し確保
+        page.wait_for_timeout(
+            2000
         )
 
         browser.close()
@@ -594,12 +699,12 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # callback直後のCookie確認
+    # 認証成功直後Cookie
     # ========================================================
 
     print("")
     print(
-        "========== COOKIE AFTER CALLBACK =========="
+        "========== COOKIES =========="
     )
 
     cookies = context.cookies()
@@ -614,53 +719,22 @@ with sync_playwright() as p:
         print(
             "COOKIE:",
             cookie["name"],
+            "|",
             cookie["domain"]
         )
 
     print(
-        "==========================================="
+        "============================="
     )
 
 
     # ========================================================
-    # callback直後のStorage確認
-    # ========================================================
-
-    try:
-
-        local_keys = page.evaluate("""
-            () => Object.keys(localStorage)
-        """)
-
-        session_keys = page.evaluate("""
-            () => Object.keys(sessionStorage)
-        """)
-
-        print(
-            "localStorage keys:",
-            local_keys
-        )
-
-        print(
-            "sessionStorage keys:",
-            session_keys
-        )
-
-    except Exception as e:
-
-        print(
-            "⚠ Storage確認失敗:",
-            e
-        )
-
-
-    # ========================================================
-    # Collabo Portalトップへ遷移完了するか監視
+    # SPA処理を待つ
     # ========================================================
 
     print("")
     print(
-        "⏳ callback後のSPA初期化待機..."
+        "⏳ Collabo Portal SPA初期化待機..."
     )
 
     spa_ready = False
@@ -671,37 +745,46 @@ with sync_playwright() as p:
 
         current_url = page.url
 
-        # ログイン画面へ戻った
-        if "login-id.dx-utility.com" in current_url:
+
+        # ----------------------------------------------------
+        # ログインページへ戻った
+        # ----------------------------------------------------
+
+        if (
+            "login-id.dx-utility.com"
+            in current_url
+        ):
 
             print(
-                "❌ ログイン画面へ戻されました"
+                "❌ SPA初期化中にログインページへ戻りました"
             )
 
             break
 
+
+        # ----------------------------------------------------
         # Collabo Portal
+        # ----------------------------------------------------
+
         if current_url.startswith(
             BASE_URL
         ):
 
             try:
 
-                article_count = (
-                    page
-                    .locator("article")
-                    .count()
-                )
+                links = page.locator(
+                    "a"
+                ).count()
 
-                link_count = (
-                    page
-                    .locator("a")
-                    .count()
-                )
+                divs = page.locator(
+                    "div"
+                ).count()
 
-                div_count = (
+                notification_links = (
                     page
-                    .locator("div")
+                    .locator(
+                        'a[href="/notifications"]'
+                    )
                     .count()
                 )
 
@@ -716,23 +799,40 @@ with sync_playwright() as p:
 
                 print(
                     "SPA状態:",
-                    "URL=",
-                    current_url,
                     "a=",
-                    link_count,
+                    links,
                     "div=",
-                    div_count,
-                    "article=",
-                    article_count,
+                    divs,
+                    "notification=",
+                    notification_links,
                     "body=",
                     len(body_text)
                 )
 
-                # SPA描画あり
+
+                # ------------------------------------------------
+                # 通知リンクが見つかれば最も確実
+                # ------------------------------------------------
+
+                if notification_links > 0:
+
+                    spa_ready = True
+
+                    print(
+                        "✅ 通知リンクを確認"
+                    )
+
+                    break
+
+
+                # ------------------------------------------------
+                # SPA自体が描画された場合
+                # ------------------------------------------------
+
                 if (
-                    link_count > 0
-                    or div_count > 5
-                    or len(body_text) > 0
+                    links > 0
+                    and divs > 5
+                    and len(body_text) > 0
                 ):
 
                     spa_ready = True
@@ -746,11 +846,14 @@ with sync_playwright() as p:
             except Exception as e:
 
                 print(
-                    "SPA状態確認失敗:",
+                    "SPA確認失敗:",
                     e
                 )
 
-        time.sleep(0.5)
+
+        page.wait_for_timeout(
+            500
+        )
 
 
     # ========================================================
@@ -768,7 +871,7 @@ with sync_playwright() as p:
     )
 
     print(
-        "現在URL:",
+        "URL:",
         page.url
     )
 
@@ -788,57 +891,95 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # SPAが不安定でも
-    # callback成功済みなら通知URLへ直接遷移を試す
+    # 通知ページへ移動
+    #
+    # まずSPAリンクを優先
     # ========================================================
 
-    if not spa_ready:
+    notification_link = page.locator(
+        'a[href="/notifications"]'
+    )
 
-        print("")
+    notification_link_count = (
+        notification_link.count()
+    )
+
+
+    print("")
+    print(
+        "🔔 通知リンク数:",
+        notification_link_count
+    )
+
+
+    if notification_link_count > 0:
+
         print(
-            "⚠ SPA描画を確認できませんでした"
+            "🔔 通知リンクをクリック"
         )
 
-        print(
-            "ただしcallbackは成功しているため、"
-            "同じ認証Contextのまま通知ページへ直接遷移します"
-        )
+        try:
+
+            notification_link.first.click(
+                timeout=15000
+            )
+
+            page.wait_for_timeout(
+                2000
+            )
+
+        except Exception as e:
+
+            print(
+                "⚠ 通知リンククリック失敗:",
+                e
+            )
 
 
     # ========================================================
-    # 通知ページへ直接遷移
+    # リンクで移動できなければ直接遷移
+    # ========================================================
+
+    if "/notifications" not in page.url:
+
+        print(
+            "➡ 認証済みContextで通知URLへ直接遷移"
+        )
+
+        try:
+
+            page.goto(
+                NOTIFICATIONS_URL,
+                wait_until="domcontentloaded",
+                timeout=60000
+            )
+
+        except Exception as e:
+
+            print(
+                "⚠ 通知ページ直接遷移エラー:",
+                e
+            )
+
+
+    # ========================================================
+    # 通知ページ状態
     # ========================================================
 
     print("")
     print(
-        "========== MOVE TO NOTIFICATIONS =========="
+        "========== NOTIFICATIONS =========="
     )
 
-    try:
-
-        page.goto(
-            NOTIFICATIONS_URL,
-            wait_until="domcontentloaded",
-            timeout=60000
-        )
-
-    except Exception as e:
-
-        print(
-            "⚠ 通知ページ遷移時エラー:",
-            e
-        )
-
-
     print(
-        "通知ページURL:",
+        "URL:",
         page.url
     )
 
     try:
 
         print(
-            "通知ページTITLE:",
+            "TITLE:",
             page.title()
         )
 
@@ -847,13 +988,16 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # ログインへ戻されたか
+    # 再ログインチェック
     # ========================================================
 
-    if "login-id.dx-utility.com" in page.url:
+    if (
+        "login-id.dx-utility.com"
+        in page.url
+    ):
 
         print(
-            "❌ 通知ページ遷移時に再ログイン画面へ戻されました"
+            "❌ 通知ページ移動時に認証が失われました"
         )
 
         browser.close()
@@ -868,7 +1012,7 @@ with sync_playwright() as p:
     # ========================================================
 
     print(
-        "⏳ 通知記事DOM待機..."
+        "⏳ 通知article待機..."
     )
 
     try:
@@ -948,7 +1092,7 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # 0件なら既存RSS保護
+    # 0件
     # ========================================================
 
     if len(items) == 0:
@@ -970,7 +1114,7 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # RSS
+    # RSS生成
     # ========================================================
 
     save_as_xml(
@@ -982,6 +1126,11 @@ with sync_playwright() as p:
     print(
         f"🎉 {len(items)}件をRSSへ出力しました"
     )
+
+
+    # ========================================================
+    # 終了
+    # ========================================================
 
     browser.close()
 
