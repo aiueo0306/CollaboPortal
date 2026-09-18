@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from urllib.parse import urljoin
 import random
 import time
+import json
+
 
 # ============================================================
 # 設定
@@ -12,8 +14,7 @@ import time
 
 LOGIN_URL = "https://dx.collaboportal.com/"
 
-# GitHub Secretsを使う場合
-USERNAME = "sato.sota@create-sd.co.jp" 
+USERNAME = "sato.sota@create-sd.co.jp"
 PASSWORD = "sota0306!"
 
 BASE_URL = "https://dx.collaboportal.com"
@@ -179,26 +180,138 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # API通信ログ
+    # ブラウザConsoleログ
+    # ========================================================
+
+    def handle_console(msg):
+        try:
+            print(
+                f"🖥 CONSOLE [{msg.type}]: "
+                f"{msg.text}"
+            )
+        except Exception as e:
+            print(
+                "⚠ Consoleログ取得失敗:",
+                e
+            )
+
+    page.on("console", handle_console)
+
+
+    # ========================================================
+    # JavaScriptエラー
+    # ========================================================
+
+    def handle_page_error(error):
+        print(
+            "💥 PAGE ERROR:",
+            error
+        )
+
+    page.on(
+        "pageerror",
+        handle_page_error
+    )
+
+
+    # ========================================================
+    # 通信失敗
+    # ========================================================
+
+    def handle_request_failed(request):
+        try:
+            print(
+                "❌ REQUEST FAILED:",
+                request.method,
+                request.url,
+                request.failure
+            )
+        except Exception as e:
+            print(
+                "⚠ requestfailed取得失敗:",
+                e
+            )
+
+    page.on(
+        "requestfailed",
+        handle_request_failed
+    )
+
+
+    # ========================================================
+    # APIレスポンス確認
     # ========================================================
 
     def handle_response(response):
 
-        if "api.collaboportal.com" in response.url:
+        if "api.collaboportal.com" not in response.url:
+            return
 
-            print(
-                f"🌐 API呼び出し: "
-                f"{response.url} "
-                f"ステータス: {response.status}"
+        print("")
+        print("========== API RESPONSE ==========")
+
+        print(
+            "URL:",
+            response.url
+        )
+
+        print(
+            "STATUS:",
+            response.status
+        )
+
+        try:
+            content_type = response.headers.get(
+                "content-type",
+                ""
             )
 
-    page.on("response", handle_response)
+            print(
+                "CONTENT-TYPE:",
+                content_type
+            )
+
+        except Exception as e:
+            print(
+                "⚠ Content-Type取得失敗:",
+                e
+            )
+
+        try:
+            body = response.text()
+
+            print(
+                "RESPONSE BODY:"
+            )
+
+            # ログが巨大にならないよう最大10000文字
+            print(
+                body[:10000]
+            )
+
+        except Exception as e:
+            print(
+                "⚠ レスポンス本文取得失敗:",
+                e
+            )
+
+        print(
+            "========== API RESPONSE END =========="
+        )
+        print("")
+
+
+    page.on(
+        "response",
+        handle_response
+    )
 
 
     # ========================================================
     # ログインページへアクセス
     # ========================================================
 
+    print("")
     print("========== LOGIN START ==========")
 
     page.goto(
@@ -206,8 +319,15 @@ with sync_playwright() as p:
         timeout=60000
     )
 
-    print("ログイン画面URL:", page.url)
-    print("ログイン画面TITLE:", page.title())
+    print(
+        "ログイン画面URL:",
+        page.url
+    )
+
+    print(
+        "ログイン画面TITLE:",
+        page.title()
+    )
 
 
     # ========================================================
@@ -276,42 +396,57 @@ with sync_playwright() as p:
         name="ログインする"
     ).click()
 
-    print("✅ ログインボタンをクリックしました")
+    print(
+        "✅ ログインボタンをクリックしました"
+    )
 
 
     # ========================================================
-    # ログイン後の状態確認
-    #
-    # 今回はwait_for_urlを使わず
-    # 実際にどこへ遷移したか確認
+    # ログイン後待機
     # ========================================================
-
-    print("⏳ ログイン後10秒待機...")
-    time.sleep(10)
-
-    print("")
-    print("========== LOGIN RESULT ==========")
 
     print(
-        "10秒後URL:",
+        "⏳ ログイン後15秒待機..."
+    )
+
+    time.sleep(15)
+
+
+    # ========================================================
+    # 状態確認
+    # ========================================================
+
+    print("")
+    print(
+        "========== LOGIN RESULT =========="
+    )
+
+    print(
+        "15秒後URL:",
         page.url
     )
 
     print(
-        "10秒後TITLE:",
+        "15秒後TITLE:",
         page.title()
     )
 
 
     # ========================================================
-    # 画面本文を取得
+    # 画面本文
     # ========================================================
 
     try:
-        body_text = page.locator("body").inner_text()
+        body_text = (
+            page
+            .locator("body")
+            .inner_text()
+        )
 
         print("")
-        print("---------- 画面本文 ----------")
+        print(
+            "---------- 画面本文 ----------"
+        )
 
         print(
             body_text[:5000]
@@ -322,7 +457,6 @@ with sync_playwright() as p:
         )
 
     except Exception as e:
-
         print(
             "⚠ 画面本文取得失敗:",
             e
@@ -330,45 +464,51 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # URL判定
+    # HTML基本状態
     # ========================================================
 
-    current_url = page.url
+    try:
+        html = page.content()
 
-    print("")
-    print("---------- URL判定 ----------")
-
-    if "login-id.dx-utility.com" in current_url:
-
+        print("")
         print(
-            "❌ ログインページに留まっています"
+            "---------- HTML STATUS ----------"
         )
 
-    elif (
-        "dx.collaboportal.com" in current_url
-        and "opt=redirect" in current_url
-    ):
-
         print(
-            "✅ 認証コード付きURLまで到達しています"
+            "HTML文字数:",
+            len(html)
         )
 
-    elif current_url.rstrip("/") == "https://dx.collaboportal.com":
-
         print(
-            "✅ Collabo Portalトップページまで到達しています"
+            "bodyタグ数:",
+            page.locator("body").count()
         )
 
-    elif "dx.collaboportal.com" in current_url:
-
         print(
-            "✅ Collabo Portal内のページへ移動しています"
+            "#__layout数:",
+            page.locator("#__layout").count()
         )
 
-    else:
+        print(
+            "#__nuxt数:",
+            page.locator("#__nuxt").count()
+        )
 
         print(
-            "⚠ 想定外のURLです"
+            "scriptタグ数:",
+            page.locator("script").count()
+        )
+
+        print(
+            "div総数:",
+            page.locator("div").count()
+        )
+
+    except Exception as e:
+        print(
+            "⚠ HTML確認失敗:",
+            e
         )
 
 
@@ -377,7 +517,9 @@ with sync_playwright() as p:
     # ========================================================
 
     print("")
-    print("---------- COOKIE ----------")
+    print(
+        "---------- COOKIE ----------"
+    )
 
     cookies = context.cookies()
 
@@ -387,7 +529,6 @@ with sync_playwright() as p:
     )
 
     for cookie in cookies:
-
         print(
             "COOKIE:",
             cookie["name"],
@@ -396,20 +537,118 @@ with sync_playwright() as p:
 
 
     # ========================================================
+    # localStorage確認
+    # ========================================================
+
+    print("")
+    print(
+        "---------- LOCAL STORAGE ----------"
+    )
+
+    try:
+        local_storage = page.evaluate("""
+            () => {
+                const result = {};
+
+                for (
+                    let i = 0;
+                    i < localStorage.length;
+                    i++
+                ) {
+                    const key = localStorage.key(i);
+
+                    result[key] = localStorage.getItem(key);
+                }
+
+                return result;
+            }
+        """)
+
+        print(
+            "localStorageキー数:",
+            len(local_storage)
+        )
+
+        for key in local_storage.keys():
+            print(
+                "LOCALSTORAGE KEY:",
+                key
+            )
+
+    except Exception as e:
+        print(
+            "⚠ localStorage取得失敗:",
+            e
+        )
+
+
+    # ========================================================
+    # sessionStorage確認
+    # ========================================================
+
+    print("")
+    print(
+        "---------- SESSION STORAGE ----------"
+    )
+
+    try:
+        session_storage = page.evaluate("""
+            () => {
+                const result = {};
+
+                for (
+                    let i = 0;
+                    i < sessionStorage.length;
+                    i++
+                ) {
+                    const key = sessionStorage.key(i);
+
+                    result[key] = sessionStorage.getItem(key);
+                }
+
+                return result;
+            }
+        """)
+
+        print(
+            "sessionStorageキー数:",
+            len(session_storage)
+        )
+
+        for key in session_storage.keys():
+            print(
+                "SESSIONSTORAGE KEY:",
+                key
+            )
+
+    except Exception as e:
+        print(
+            "⚠ sessionStorage取得失敗:",
+            e
+        )
+
+
+    # ========================================================
     # DOM確認
     # ========================================================
 
     print("")
-    print("---------- DOM ----------")
+    print(
+        "---------- DOM ----------"
+    )
 
     print(
         "email入力欄数:",
-        page.locator("#email").count()
+        page.locator(
+            "#email"
+        ).count()
     )
 
     print(
         "password入力欄数:",
-        page.locator("#password").count()
+        page.locator(
+            "#password"
+        ).count()
     )
 
     print(
@@ -433,23 +672,70 @@ with sync_playwright() as p:
         ).count()
     )
 
+    print(
+        "aタグ総数:",
+        page.locator(
+            "a"
+        ).count()
+    )
+
+
+    # ========================================================
+    # ログイン状態判定
+    # ========================================================
+
     print("")
-    print("========== LOGIN RESULT END ==========")
+    print(
+        "---------- URL判定 ----------"
+    )
+
+    current_url = page.url
+
+    if "login-id.dx-utility.com" in current_url:
+
+        print(
+            "❌ ログインページに戻っています"
+        )
+
+    elif (
+        current_url.rstrip("/")
+        == "https://dx.collaboportal.com"
+    ):
+
+        print(
+            "✅ Collabo Portalトップページにいます"
+        )
+
+    elif "dx.collaboportal.com" in current_url:
+
+        print(
+            "✅ Collabo Portal内にいます"
+        )
+
+    else:
+
+        print(
+            "⚠ 想定外のURLです"
+        )
+
+
+    print("")
+    print(
+        "========== LOGIN RESULT END =========="
+    )
 
 
     # ========================================================
     # 今回はここで終了
-    #
-    # RSSは0件で上書きしない
     # ========================================================
 
     print("")
     print(
-        "🔍 今回はログイン状態確認のみ行いました。"
+        "🔍 今回はSPA/APIの状態確認のみ行います。"
     )
 
     print(
-        "RSSファイルの更新は行いません。"
+        "RSSファイルは更新しません。"
     )
 
     print(
