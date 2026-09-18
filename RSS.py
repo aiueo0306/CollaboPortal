@@ -13,7 +13,7 @@ import time
 LOGIN_URL = "https://dx.collaboportal.com/"
 
 USERNAME = "sato.sota@create-sd.co.jp"
-PASSWORD = "YOUR_PASSWORD"
+PASSWORD = "sota0306!"
 
 BASE_URL = "https://dx.collaboportal.com"
 NOTIFICATIONS_URL = BASE_URL + "/notifications"
