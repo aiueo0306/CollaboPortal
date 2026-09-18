@@ -13,8 +13,8 @@ import time
 LOGIN_URL = "https://dx.collaboportal.com/"
 
 # GitHub Secretsを使う場合
-USERNAME = os.getenv("COLLABO_USERNAME", "YOUR_USERNAME")
-PASSWORD = os.getenv("COLLABO_PASSWORD", "YOUR_PASSWORD")
+USERNAME = "sato.sota@create-sd.co.jp" 
+PASSWORD = "sota0306!"
 
 BASE_URL = "https://dx.collaboportal.com"
 DEFAULT_LINK = BASE_URL + "/notifications"
