@@ -135,6 +135,14 @@ with sync_playwright() as p:
     # ✅ ログイン後のリダイレクト完了を待機
     page.wait_for_url("https://dx.collaboportal.com/?opt=redirect&code=*", timeout=60000)
     print("✅ ログイン完了")
+
+    print("ログイン後URL:", page.url)
+
+    cookies = context.cookies()
+    print("Cookie数:", len(cookies))
+
+    for c in cookies:
+        print("COOKIE:", c["name"], c["domain"])
     
     page.wait_for_url("https://dx.collaboportal.com/", timeout=60000)
 
@@ -147,6 +155,14 @@ with sync_playwright() as p:
 
     # ✅ ページが完全に読み込まれるまで待つ
     page.wait_for_load_state("networkidle")
+
+    print("通知ページ移動後URL:", page.url)
+    print("通知ページTITLE:", page.title())
+    
+    if "login-id.dx-utility.com" in page.url:
+        print("❌ 認証状態が維持されておらず、ログイン画面へ戻されています")
+    else:
+        print("✅ 認証状態は維持されています")
     
     title = page.title()
     print(f"✅ 現在のページタイトル: {title}")
