@@ -156,6 +156,32 @@ with sync_playwright() as p:
 
     title = page.title()
     print(f"✅ 現在のページタイトル: {title}")
+
+
+        # ===== デバッグ情報 =====
+    print("\n========== DEBUG START ==========")
+    print(f"URL: {page.url}")
+    print(f"TITLE: {page.title()}")
+
+    print(f"article総数: {page.locator('article').count()}")
+    print(f"content_NR3Mk数: {page.locator('div.content_NR3Mk').count()}")
+    print(f"対象article数: {page.locator('div.content_NR3Mk > article').count()}")
+
+    # content_NR3Mk が存在する場合、その中身をログに表示
+    content = page.locator("div.content_NR3Mk")
+
+    if content.count() > 0:
+        print("\n--- content_NR3Mk 内部HTML ---")
+        try:
+            html = content.first.inner_html()
+            print(html[:10000])
+        except Exception as e:
+            print(f"HTML取得失敗: {e}")
+    else:
+        print("\n⚠ content_NR3Mk 自体が見つかりません")
+
+    print("========== DEBUG END ==========\n")
+
     
     # 通知の抽出と保存
     items = extract_items(page)
