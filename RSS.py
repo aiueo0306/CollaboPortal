@@ -11,8 +11,10 @@ import time
 # ============================================================
 
 LOGIN_URL = "https://dx.collaboportal.com/"
-USERNAME = "YOUR_USERNAME"
-PASSWORD = "YOUR_PASSWORD"
+
+# GitHub Secretsを使う場合
+USERNAME = os.getenv("COLLABO_USERNAME", "YOUR_USERNAME")
+PASSWORD = os.getenv("COLLABO_PASSWORD", "YOUR_PASSWORD")
 
 BASE_URL = "https://dx.collaboportal.com"
 DEFAULT_LINK = BASE_URL + "/notifications"
@@ -65,7 +67,6 @@ def save_as_xml(items, output_path):
 # ============================================================
 
 def extract_items(page):
-
     rows = page.locator("div.content_NR3Mk > article")
 
     count = rows.count()
@@ -75,11 +76,9 @@ def extract_items(page):
     items = []
 
     for i in range(count):
-
         row = rows.nth(i)
 
         try:
-
             title = (
                 row
                 .locator("a > h2")
@@ -88,7 +87,6 @@ def extract_items(page):
             )
 
             link_elem = row.locator("a")
-
             href = link_elem.first.get_attribute("href")
 
             if href:
@@ -97,7 +95,6 @@ def extract_items(page):
                 link = DEFAULT_LINK
 
             description = ""
-
             pub_date = datetime.now(timezone.utc)
 
             items.append({
@@ -108,7 +105,6 @@ def extract_items(page):
             })
 
         except Exception as e:
-
             print(
                 f"⚠ 通知{i + 1}の解析に失敗: {e}"
             )
@@ -263,7 +259,7 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # ログイン
+    # ログインボタン
     # ========================================================
 
     delay = random.uniform(1, 3)
@@ -280,42 +276,110 @@ with sync_playwright() as p:
         name="ログインする"
     ).click()
 
+    print("✅ ログインボタンをクリックしました")
+
 
     # ========================================================
-    # 認証コード付きURLを待つ
+    # ログイン後の状態確認
+    #
+    # 今回はwait_for_urlを使わず
+    # 実際にどこへ遷移したか確認
     # ========================================================
 
-    page.wait_for_url(
-        "https://dx.collaboportal.com/?opt=redirect&code=*",
-        timeout=60000
+    print("⏳ ログイン後10秒待機...")
+    time.sleep(10)
+
+    print("")
+    print("========== LOGIN RESULT ==========")
+
+    print(
+        "10秒後URL:",
+        page.url
     )
 
-    print("✅ 認証コード付きURLへ到達")
-    print("認証直後URL:", page.url)
-
-
-    # ========================================================
-    # Collabo Portalトップページを待つ
-    # ========================================================
-
-    page.wait_for_url(
-        "https://dx.collaboportal.com/",
-        timeout=60000
+    print(
+        "10秒後TITLE:",
+        page.title()
     )
 
-    print("✅ Collabo Portalトップページへ到達")
-    print("トップページURL:", page.url)
-    print("トップページTITLE:", page.title())
+
+    # ========================================================
+    # 画面本文を取得
+    # ========================================================
+
+    try:
+        body_text = page.locator("body").inner_text()
+
+        print("")
+        print("---------- 画面本文 ----------")
+
+        print(
+            body_text[:5000]
+        )
+
+        print(
+            "---------- 画面本文ここまで ----------"
+        )
+
+    except Exception as e:
+
+        print(
+            "⚠ 画面本文取得失敗:",
+            e
+        )
+
+
+    # ========================================================
+    # URL判定
+    # ========================================================
+
+    current_url = page.url
+
+    print("")
+    print("---------- URL判定 ----------")
+
+    if "login-id.dx-utility.com" in current_url:
+
+        print(
+            "❌ ログインページに留まっています"
+        )
+
+    elif (
+        "dx.collaboportal.com" in current_url
+        and "opt=redirect" in current_url
+    ):
+
+        print(
+            "✅ 認証コード付きURLまで到達しています"
+        )
+
+    elif current_url.rstrip("/") == "https://dx.collaboportal.com":
+
+        print(
+            "✅ Collabo Portalトップページまで到達しています"
+        )
+
+    elif "dx.collaboportal.com" in current_url:
+
+        print(
+            "✅ Collabo Portal内のページへ移動しています"
+        )
+
+    else:
+
+        print(
+            "⚠ 想定外のURLです"
+        )
 
 
     # ========================================================
     # Cookie確認
     # ========================================================
 
-    cookies = context.cookies()
-
     print("")
-    print("========== COOKIE ==========")
+    print("---------- COOKIE ----------")
+
+    cookies = context.cookies()
 
     print(
         "Cookie数:",
@@ -330,62 +394,36 @@ with sync_playwright() as p:
             cookie["domain"]
         )
 
-    print("============================")
-    print("")
-
 
     # ========================================================
-    # 認証状態が安定するか確認
-    #
-    # ★ここでは通知ページへ移動しない
-    # ★10秒間トップページの状態を確認する
-    # ========================================================
-
-    print(
-        "⏳ ログイン状態確認のため10秒待機..."
-    )
-
-    time.sleep(10)
-
-
-    # ========================================================
-    # 10秒後の状態
+    # DOM確認
     # ========================================================
 
     print("")
-    print("========== LOGIN DEBUG ==========")
+    print("---------- DOM ----------")
 
     print(
-        "10秒後URL:",
-        page.url
+        "email入力欄数:",
+        page.locator("#email").count()
     )
 
     print(
-        "10秒後TITLE:",
-        page.title()
-    )
-
-    notification_links = page.locator(
-        'a[href="/notifications"]'
-    )
-
-    logout_links = page.locator(
-        'a[href*="/logout"]'
+        "password入力欄数:",
+        page.locator("#password").count()
     )
 
     print(
         "通知リンク数:",
-        notification_links.count()
-    )
-
-    print(
-        "ログアウトリンク数:",
-        logout_links.count()
+        page.locator(
+            'a[href="/notifications"]'
+        ).count()
     )
 
     print(
         "article総数:",
-        page.locator("article").count()
+        page.locator(
+            "article"
+        ).count()
     )
 
     print(
@@ -395,40 +433,23 @@ with sync_playwright() as p:
         ).count()
     )
 
-
-    # ========================================================
-    # ログイン画面へ戻されていないか確認
-    # ========================================================
-
-    if "login-id.dx-utility.com" in page.url:
-
-        print(
-            "❌ 10秒以内にログイン画面へ戻されました"
-        )
-
-    elif "dx.collaboportal.com" in page.url:
-
-        print(
-            "✅ Collabo Portal内に留まっています"
-        )
-
-    else:
-
-        print(
-            "⚠ 想定外のURLへ移動しています"
-        )
-
-    print("========== DEBUG END ==========")
+    print("")
+    print("========== LOGIN RESULT END ==========")
 
 
     # ========================================================
-    # 今回は原因調査のため通知ページへ移動しない
+    # 今回はここで終了
+    #
+    # RSSは0件で上書きしない
     # ========================================================
 
     print("")
     print(
-        "🔍 今回は認証状態確認のため、"
-        "通知ページへの移動・RSS更新は実行しません。"
+        "🔍 今回はログイン状態確認のみ行いました。"
+    )
+
+    print(
+        "RSSファイルの更新は行いません。"
     )
 
     print(
