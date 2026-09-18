@@ -28,7 +28,6 @@ OUTPUT_PATH = os.path.join(OUTPUT_DIR, OUTPUT_FILENAME)
 # ============================================================
 
 def save_as_xml(items, output_path):
-
     os.makedirs(
         os.path.dirname(output_path),
         exist_ok=True
@@ -60,7 +59,6 @@ def save_as_xml(items, output_path):
     ).text = "COLLABO Portal 通知一覧"
 
     for item in items:
-
         entry = ET.SubElement(
             channel,
             "item"
@@ -106,7 +104,6 @@ def save_as_xml(items, output_path):
 # ============================================================
 
 def extract_items(page):
-
     rows = page.locator(
         "div.content_NR3Mk > article"
     )
@@ -120,11 +117,9 @@ def extract_items(page):
     items = []
 
     for i in range(count):
-
         row = rows.nth(i)
 
         try:
-
             title = (
                 row
                 .locator("a > h2")
@@ -162,7 +157,6 @@ def extract_items(page):
             )
 
         except Exception as e:
-
             print(
                 f"⚠ 通知{i + 1}取得失敗: {e}"
             )
@@ -178,9 +172,6 @@ with sync_playwright() as p:
 
     # ========================================================
     # Chromium起動
-    #
-    # AutomationControlled等の偽装設定は使用しない
-    # User-AgentもPlaywright標準に任せる
     # ========================================================
 
     browser = p.chromium.launch(
@@ -204,16 +195,14 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # Consoleエラー
+    # Console
     # ========================================================
 
     def console_handler(msg):
-
         if msg.type in [
             "error",
             "warning"
         ]:
-
             print(
                 f"🖥 CONSOLE [{msg.type}]: "
                 f"{msg.text}"
@@ -230,7 +219,6 @@ with sync_playwright() as p:
     # ========================================================
 
     def page_error_handler(error):
-
         print(
             f"💥 PAGE ERROR: {error}"
         )
@@ -242,21 +230,33 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # 通信失敗
+    # 通信自体の失敗
     # ========================================================
 
     def request_failed_handler(request):
-
-        # Google Analytics失敗は無視
         if "google-analytics.com" in request.url:
             return
 
+        print("")
         print(
-            "❌ REQUEST FAILED:",
-            request.method,
-            request.url,
+            "========== REQUEST FAILED =========="
+        )
+        print(
+            "METHOD:",
+            request.method
+        )
+        print(
+            "URL:",
+            request.url
+        )
+        print(
+            "FAILURE:",
             request.failure
         )
+        print(
+            "========== REQUEST FAILED END =========="
+        )
+        print("")
 
     page.on(
         "requestfailed",
@@ -265,13 +265,99 @@ with sync_playwright() as p:
 
 
     # ========================================================
+    # ★ HTTP 4xx / 5xx を監視
+    # ========================================================
+
+    def response_handler(response):
+        try:
+            if response.status < 400:
+                return
+
+            print("")
+            print(
+                "========== HTTP ERROR =========="
+            )
+
+            print(
+                "STATUS:",
+                response.status
+            )
+
+            print(
+                "URL:",
+                response.url
+            )
+
+            try:
+                print(
+                    "METHOD:",
+                    response.request.method
+                )
+            except Exception as e:
+                print(
+                    "METHOD取得失敗:",
+                    e
+                )
+
+            try:
+                content_type = response.headers.get(
+                    "content-type",
+                    ""
+                )
+
+                print(
+                    "CONTENT-TYPE:",
+                    content_type
+                )
+
+            except Exception as e:
+                print(
+                    "CONTENT-TYPE取得失敗:",
+                    e
+                )
+
+            try:
+                body = response.text()
+
+                print(
+                    "BODY:"
+                )
+
+                # 長すぎるログを防止
+                print(
+                    body[:5000]
+                )
+
+            except Exception as e:
+                print(
+                    "BODY取得失敗:",
+                    e
+                )
+
+            print(
+                "========== HTTP ERROR END =========="
+            )
+
+            print("")
+
+        except Exception as e:
+            print(
+                "HTTPエラー監視失敗:",
+                e
+            )
+
+    page.on(
+        "response",
+        response_handler
+    )
+
+
+    # ========================================================
     # URL遷移監視
     # ========================================================
 
     def frame_navigated_handler(frame):
-
         if frame == page.main_frame:
-
             print(
                 "➡ URL:",
                 frame.url
@@ -305,11 +391,10 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # ログイン画面
+    # ログイン画面待機
     # ========================================================
 
     try:
-
         page.locator(
             "#email"
         ).wait_for(
@@ -318,7 +403,6 @@ with sync_playwright() as p:
         )
 
     except PlaywrightTimeoutError:
-
         print(
             "❌ メールアドレス入力欄が表示されません"
         )
@@ -329,6 +413,7 @@ with sync_playwright() as p:
         )
 
         browser.close()
+
         raise
 
 
@@ -373,10 +458,7 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # 認証処理を監視
-    #
-    # 特定のcallback URLをwait_for_urlで待たない。
-    # SPAの認証処理が完了するまで状態を見る。
+    # 認証完了待機
     # ========================================================
 
     print(
@@ -394,7 +476,6 @@ with sync_playwright() as p:
         current_url = page.url
 
         if current_url != last_url:
-
             print(
                 "🔗 現在URL:",
                 current_url
@@ -403,9 +484,9 @@ with sync_playwright() as p:
             last_url = current_url
 
 
-        # ----------------------------------------------------
-        # Collabo Portalへ戻っている
-        # ----------------------------------------------------
+        # ====================================================
+        # Collabo Portal側へ戻っているか
+        # ====================================================
 
         if (
             current_url.startswith(
@@ -417,32 +498,24 @@ with sync_playwright() as p:
             not in current_url
         ):
 
-            title = ""
-
             try:
                 title = page.title()
             except Exception:
-                pass
+                title = ""
 
             print(
                 "📄 TITLE:",
                 title
             )
 
-
-            # -----------------------------------------------
-            # SPAのDOMが生成されたか
-            # -----------------------------------------------
-
             try:
-
                 layout_count = (
                     page
                     .locator("#__layout")
                     .count()
                 )
 
-                link_count = (
+                links_count = (
                     page
                     .locator("a")
                     .count()
@@ -458,32 +531,24 @@ with sync_playwright() as p:
                 )
 
             except Exception:
-
                 layout_count = 0
-                link_count = 0
+                links_count = 0
                 body_text = ""
-
 
             print(
                 "   layout:",
                 layout_count,
                 "links:",
-                link_count,
+                links_count,
                 "body:",
                 len(body_text)
             )
 
-
-            # -----------------------------------------------
-            # 認証後SPAが実際に描画されたと判断
-            # -----------------------------------------------
-
             if (
                 layout_count > 0
-                or link_count > 0
+                or links_count > 0
                 or len(body_text) > 0
             ):
-
                 authenticated = True
 
                 print(
@@ -491,7 +556,6 @@ with sync_playwright() as p:
                 )
 
                 break
-
 
         time.sleep(2)
 
@@ -510,10 +574,16 @@ with sync_playwright() as p:
         page.url
     )
 
-    print(
-        "TITLE:",
-        page.title()
-    )
+    try:
+        print(
+            "TITLE:",
+            page.title()
+        )
+    except Exception as e:
+        print(
+            "TITLE取得失敗:",
+            e
+        )
 
     print(
         "認証状態:",
@@ -526,7 +596,7 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # 認証失敗
+    # 認証失敗時
     # ========================================================
 
     if not authenticated:
@@ -534,6 +604,11 @@ with sync_playwright() as p:
         print("")
         print(
             "❌ Collabo PortalのSPA描画まで到達できませんでした。"
+        )
+
+        print(
+            "今回確認したいのは、上に出ている"
+            "「HTTP ERROR」の STATUS / URL / METHOD / BODY です。"
         )
 
         print(
@@ -548,7 +623,7 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # 認証成功後 少し安定待ち
+    # 認証成功後
     # ========================================================
 
     print(
@@ -577,7 +652,7 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # SPAリンクがある場合はクリック
+    # 通知ページ移動
     # ========================================================
 
     if notification_link_count > 0:
@@ -589,14 +664,12 @@ with sync_playwright() as p:
         notification_link.first.click()
 
         try:
-
             page.wait_for_url(
                 "**/notifications*",
                 timeout=30000
             )
 
         except PlaywrightTimeoutError:
-
             print(
                 "⚠ URL待機タイムアウト"
             )
@@ -605,13 +678,6 @@ with sync_playwright() as p:
                 "現在URL:",
                 page.url
             )
-
-
-    # ========================================================
-    # 通知リンクが見つからない場合
-    #
-    # 認証済み状態なので直接遷移を試す
-    # ========================================================
 
     else:
 
@@ -628,7 +694,7 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # 通知ページ確認
+    # 通知ページ
     # ========================================================
 
     print("")
@@ -648,11 +714,10 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # 通知記事の描画待ち
+    # article待機
     # ========================================================
 
     try:
-
         page.locator(
             "div.content_NR3Mk > article"
         ).first.wait_for(
@@ -665,14 +730,13 @@ with sync_playwright() as p:
         )
 
     except PlaywrightTimeoutError:
-
         print(
             "⚠ 30秒待っても通知記事が表示されません"
         )
 
 
     # ========================================================
-    # 最終DOM診断
+    # DOM確認
     # ========================================================
 
     print(
@@ -711,7 +775,7 @@ with sync_playwright() as p:
 
 
     # ========================================================
-    # 0件ならRSSを上書きしない
+    # 0件ならRSS保護
     # ========================================================
 
     if len(items) == 0:
@@ -746,11 +810,6 @@ with sync_playwright() as p:
     print(
         f"🎉 {len(items)}件の通知をRSSへ出力しました"
     )
-
-
-    # ========================================================
-    # 終了
-    # ========================================================
 
     browser.close()
 
