@@ -1,11 +1,9 @@
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 import os
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from urllib.parse import urljoin
-import random
 import time
-import json
 
 
 # ============================================================
@@ -15,10 +13,10 @@ import json
 LOGIN_URL = "https://dx.collaboportal.com/"
 
 USERNAME = "sato.sota@create-sd.co.jp"
-PASSWORD = "sota0306!"
+PASSWORD = "YOUR_PASSWORD"
 
 BASE_URL = "https://dx.collaboportal.com"
-DEFAULT_LINK = BASE_URL + "/notifications"
+NOTIFICATIONS_URL = BASE_URL + "/notifications"
 
 OUTPUT_DIR = "rss_output"
 OUTPUT_FILENAME = "notifications.xml"
@@ -30,26 +28,64 @@ OUTPUT_PATH = os.path.join(OUTPUT_DIR, OUTPUT_FILENAME)
 # ============================================================
 
 def save_as_xml(items, output_path):
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    rss = ET.Element("rss", version="2.0")
-    channel = ET.SubElement(rss, "channel")
+    os.makedirs(
+        os.path.dirname(output_path),
+        exist_ok=True
+    )
 
-    ET.SubElement(channel, "title").text = "Collabo Portal Notifications"
-    ET.SubElement(channel, "link").text = DEFAULT_LINK
-    ET.SubElement(channel, "description").text = "通知一覧"
+    rss = ET.Element(
+        "rss",
+        version="2.0"
+    )
+
+    channel = ET.SubElement(
+        rss,
+        "channel"
+    )
+
+    ET.SubElement(
+        channel,
+        "title"
+    ).text = "Collabo Portal Notifications"
+
+    ET.SubElement(
+        channel,
+        "link"
+    ).text = NOTIFICATIONS_URL
+
+    ET.SubElement(
+        channel,
+        "description"
+    ).text = "COLLABO Portal 通知一覧"
 
     for item in items:
-        entry = ET.SubElement(channel, "item")
 
-        ET.SubElement(entry, "title").text = item["title"]
-        ET.SubElement(entry, "link").text = item["link"]
-        ET.SubElement(entry, "description").text = item["description"]
+        entry = ET.SubElement(
+            channel,
+            "item"
+        )
 
-        ET.SubElement(entry, "pubDate").text = (
-            item["pub_date"].strftime(
-                "%a, %d %b %Y %H:%M:%S +0000"
-            )
+        ET.SubElement(
+            entry,
+            "title"
+        ).text = item["title"]
+
+        ET.SubElement(
+            entry,
+            "link"
+        ).text = item["link"]
+
+        ET.SubElement(
+            entry,
+            "description"
+        ).text = item["description"]
+
+        ET.SubElement(
+            entry,
+            "pubDate"
+        ).text = item["pub_date"].strftime(
+            "%a, %d %b %Y %H:%M:%S +0000"
         )
 
     tree = ET.ElementTree(rss)
@@ -60,7 +96,9 @@ def save_as_xml(items, output_path):
         xml_declaration=True
     )
 
-    print(f"✅ XMLファイルを保存しました: {output_path}")
+    print(
+        f"✅ RSS保存完了: {output_path}"
+    )
 
 
 # ============================================================
@@ -68,67 +106,88 @@ def save_as_xml(items, output_path):
 # ============================================================
 
 def extract_items(page):
-    rows = page.locator("div.content_NR3Mk > article")
+
+    rows = page.locator(
+        "div.content_NR3Mk > article"
+    )
 
     count = rows.count()
 
-    print(f"📦 発見した通知数: {count}")
+    print(
+        f"📦 発見した通知数: {count}"
+    )
 
     items = []
 
     for i in range(count):
+
         row = rows.nth(i)
 
         try:
+
             title = (
                 row
                 .locator("a > h2")
+                .first
                 .inner_text()
                 .strip()
             )
 
-            link_elem = row.locator("a")
-            href = link_elem.first.get_attribute("href")
+            href = (
+                row
+                .locator("a")
+                .first
+                .get_attribute("href")
+            )
 
             if href:
-                link = urljoin(BASE_URL, href)
+                link = urljoin(
+                    BASE_URL,
+                    href
+                )
             else:
-                link = DEFAULT_LINK
-
-            description = ""
-            pub_date = datetime.now(timezone.utc)
+                link = NOTIFICATIONS_URL
 
             items.append({
                 "title": title,
                 "link": link,
-                "description": description,
-                "pub_date": pub_date
+                "description": "",
+                "pub_date": datetime.now(
+                    timezone.utc
+                )
             })
 
-        except Exception as e:
             print(
-                f"⚠ 通知{i + 1}の解析に失敗: {e}"
+                f"  {i + 1}. {title}"
+            )
+
+        except Exception as e:
+
+            print(
+                f"⚠ 通知{i + 1}取得失敗: {e}"
             )
 
     return items
 
 
 # ============================================================
-# メイン処理
+# メイン
 # ============================================================
 
 with sync_playwright() as p:
 
+    # ========================================================
+    # Chromium起動
+    #
+    # AutomationControlled等の偽装設定は使用しない
+    # User-AgentもPlaywright標準に任せる
+    # ========================================================
+
     browser = p.chromium.launch(
         headless=True,
         args=[
-            "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
-            "--disable-infobars",
-            "--disable-dev-shm-usage",
-            "--disable-extensions",
-            "--start-maximized",
-            "--profile-directory=Default",
+            "--disable-dev-shm-usage"
         ]
     )
 
@@ -137,80 +196,48 @@ with sync_playwright() as p:
             "width": 1366,
             "height": 768
         },
-        user_agent=(
-            "Mozilla/5.0 "
-            "(Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 "
-            "(KHTML, like Gecko) "
-            "Chrome/124.0.0.0 "
-            "Safari/537.36"
-        ),
-        java_script_enabled=True,
-        bypass_csp=True,
-        ignore_https_errors=True,
         locale="ja-JP",
+        ignore_https_errors=True
     )
 
     page = context.new_page()
 
 
     # ========================================================
-    # Bot検知対策
+    # Consoleエラー
     # ========================================================
 
-    page.add_init_script("""
-        Object.defineProperty(
-            navigator,
-            'webdriver',
-            {get: () => undefined}
-        );
+    def console_handler(msg):
 
-        Object.defineProperty(
-            navigator,
-            'plugins',
-            {get: () => [1, 2, 3, 4, 5]}
-        );
+        if msg.type in [
+            "error",
+            "warning"
+        ]:
 
-        Object.defineProperty(
-            navigator,
-            'languages',
-            {get: () => ['ja-JP', 'ja']}
-        );
-    """)
-
-
-    # ========================================================
-    # ブラウザConsoleログ
-    # ========================================================
-
-    def handle_console(msg):
-        try:
             print(
                 f"🖥 CONSOLE [{msg.type}]: "
                 f"{msg.text}"
             )
-        except Exception as e:
-            print(
-                "⚠ Consoleログ取得失敗:",
-                e
-            )
 
-    page.on("console", handle_console)
+    page.on(
+        "console",
+        console_handler
+    )
 
 
     # ========================================================
     # JavaScriptエラー
     # ========================================================
 
-    def handle_page_error(error):
+    def page_error_handler(error):
+
         print(
-            "💥 PAGE ERROR:",
-            error
+            f"💥 PAGE ERROR: {error}"
         )
 
     page.on(
         "pageerror",
-        handle_page_error
+        page_error_handler
     )
 
 
@@ -218,178 +245,122 @@ with sync_playwright() as p:
     # 通信失敗
     # ========================================================
 
-    def handle_request_failed(request):
-        try:
-            print(
-                "❌ REQUEST FAILED:",
-                request.method,
-                request.url,
-                request.failure
-            )
-        except Exception as e:
-            print(
-                "⚠ requestfailed取得失敗:",
-                e
-            )
+    def request_failed_handler(request):
+
+        # Google Analytics失敗は無視
+        if "google-analytics.com" in request.url:
+            return
+
+        print(
+            "❌ REQUEST FAILED:",
+            request.method,
+            request.url,
+            request.failure
+        )
 
     page.on(
         "requestfailed",
-        handle_request_failed
+        request_failed_handler
     )
 
 
     # ========================================================
-    # APIレスポンス確認
+    # URL遷移監視
     # ========================================================
 
-    def handle_response(response):
+    def frame_navigated_handler(frame):
 
-        if "api.collaboportal.com" not in response.url:
-            return
-
-        print("")
-        print("========== API RESPONSE ==========")
-
-        print(
-            "URL:",
-            response.url
-        )
-
-        print(
-            "STATUS:",
-            response.status
-        )
-
-        try:
-            content_type = response.headers.get(
-                "content-type",
-                ""
-            )
+        if frame == page.main_frame:
 
             print(
-                "CONTENT-TYPE:",
-                content_type
+                "➡ URL:",
+                frame.url
             )
-
-        except Exception as e:
-            print(
-                "⚠ Content-Type取得失敗:",
-                e
-            )
-
-        try:
-            body = response.text()
-
-            print(
-                "RESPONSE BODY:"
-            )
-
-            # ログが巨大にならないよう最大10000文字
-            print(
-                body[:10000]
-            )
-
-        except Exception as e:
-            print(
-                "⚠ レスポンス本文取得失敗:",
-                e
-            )
-
-        print(
-            "========== API RESPONSE END =========="
-        )
-        print("")
-
 
     page.on(
-        "response",
-        handle_response
+        "framenavigated",
+        frame_navigated_handler
     )
 
 
     # ========================================================
-    # ログインページへアクセス
+    # 開始
     # ========================================================
 
     print("")
-    print("========== LOGIN START ==========")
+    print(
+        "========== LOGIN START =========="
+    )
 
     page.goto(
         LOGIN_URL,
+        wait_until="domcontentloaded",
         timeout=60000
     )
 
     print(
-        "ログイン画面URL:",
+        "初期URL:",
         page.url
     )
 
+
+    # ========================================================
+    # ログイン画面
+    # ========================================================
+
+    try:
+
+        page.locator(
+            "#email"
+        ).wait_for(
+            state="visible",
+            timeout=60000
+        )
+
+    except PlaywrightTimeoutError:
+
+        print(
+            "❌ メールアドレス入力欄が表示されません"
+        )
+
+        print(
+            "現在URL:",
+            page.url
+        )
+
+        browser.close()
+        raise
+
+
     print(
-        "ログイン画面TITLE:",
-        page.title()
+        "✅ ログイン画面表示"
     )
 
 
     # ========================================================
-    # メールアドレス入力
+    # 認証情報入力
     # ========================================================
 
-    delay = random.uniform(2, 4)
-
-    print(
-        f"⏳ メール入力前に "
-        f"{delay:.2f} 秒待機"
-    )
-
-    time.sleep(delay)
-
-    page.wait_for_selector(
-        "#email",
-        timeout=60000
-    )
-
-    page.fill(
-        "#email",
+    page.locator(
+        "#email"
+    ).fill(
         USERNAME
     )
 
+    time.sleep(1)
 
-    # ========================================================
-    # パスワード入力
-    # ========================================================
-
-    delay = random.uniform(1, 3)
-
-    print(
-        f"⏳ パスワード入力前に "
-        f"{delay:.2f} 秒待機"
-    )
-
-    time.sleep(delay)
-
-    page.wait_for_selector(
-        "#password",
-        timeout=60000
-    )
-
-    page.fill(
-        "#password",
+    page.locator(
+        "#password"
+    ).fill(
         PASSWORD
     )
 
+    time.sleep(1)
+
 
     # ========================================================
-    # ログインボタン
+    # ログイン
     # ========================================================
-
-    delay = random.uniform(1, 3)
-
-    print(
-        f"⏳ ログインボタンクリック前に "
-        f"{delay:.2f} 秒待機"
-    )
-
-    time.sleep(delay)
 
     page.get_by_role(
         "button",
@@ -397,266 +368,312 @@ with sync_playwright() as p:
     ).click()
 
     print(
-        "✅ ログインボタンをクリックしました"
+        "✅ ログインボタンをクリック"
     )
 
 
     # ========================================================
-    # ログイン後待機
+    # 認証処理を監視
+    #
+    # 特定のcallback URLをwait_for_urlで待たない。
+    # SPAの認証処理が完了するまで状態を見る。
     # ========================================================
 
     print(
-        "⏳ ログイン後15秒待機..."
+        "⏳ Auth0 / SPA認証完了待機..."
     )
 
-    time.sleep(15)
+    authenticated = False
+
+    start_time = time.time()
+
+    last_url = ""
+
+    while time.time() - start_time < 60:
+
+        current_url = page.url
+
+        if current_url != last_url:
+
+            print(
+                "🔗 現在URL:",
+                current_url
+            )
+
+            last_url = current_url
+
+
+        # ----------------------------------------------------
+        # Collabo Portalへ戻っている
+        # ----------------------------------------------------
+
+        if (
+            current_url.startswith(
+                BASE_URL
+            )
+            and "login-id.dx-utility.com"
+            not in current_url
+            and "id.dx-utility.com"
+            not in current_url
+        ):
+
+            title = ""
+
+            try:
+                title = page.title()
+            except Exception:
+                pass
+
+            print(
+                "📄 TITLE:",
+                title
+            )
+
+
+            # -----------------------------------------------
+            # SPAのDOMが生成されたか
+            # -----------------------------------------------
+
+            try:
+
+                layout_count = (
+                    page
+                    .locator("#__layout")
+                    .count()
+                )
+
+                link_count = (
+                    page
+                    .locator("a")
+                    .count()
+                )
+
+                body_text = (
+                    page
+                    .locator("body")
+                    .inner_text(
+                        timeout=2000
+                    )
+                    .strip()
+                )
+
+            except Exception:
+
+                layout_count = 0
+                link_count = 0
+                body_text = ""
+
+
+            print(
+                "   layout:",
+                layout_count,
+                "links:",
+                link_count,
+                "body:",
+                len(body_text)
+            )
+
+
+            # -----------------------------------------------
+            # 認証後SPAが実際に描画されたと判断
+            # -----------------------------------------------
+
+            if (
+                layout_count > 0
+                or link_count > 0
+                or len(body_text) > 0
+            ):
+
+                authenticated = True
+
+                print(
+                    "✅ Collabo Portal SPA描画確認"
+                )
+
+                break
+
+
+        time.sleep(2)
 
 
     # ========================================================
-    # 状態確認
+    # 認証結果
     # ========================================================
 
     print("")
     print(
-        "========== LOGIN RESULT =========="
+        "========== AUTH RESULT =========="
     )
 
     print(
-        "15秒後URL:",
+        "最終URL:",
         page.url
     )
 
     print(
-        "15秒後TITLE:",
+        "TITLE:",
+        page.title()
+    )
+
+    print(
+        "認証状態:",
+        authenticated
+    )
+
+    print(
+        "================================="
+    )
+
+
+    # ========================================================
+    # 認証失敗
+    # ========================================================
+
+    if not authenticated:
+
+        print("")
+        print(
+            "❌ Collabo PortalのSPA描画まで到達できませんでした。"
+        )
+
+        print(
+            "RSSは更新しません。"
+        )
+
+        browser.close()
+
+        raise RuntimeError(
+            "Collabo Portal authentication failed"
+        )
+
+
+    # ========================================================
+    # 認証成功後 少し安定待ち
+    # ========================================================
+
+    print(
+        "⏳ SPA安定待機..."
+    )
+
+    time.sleep(5)
+
+
+    # ========================================================
+    # 通知リンク確認
+    # ========================================================
+
+    notification_link = page.locator(
+        'a[href="/notifications"]'
+    )
+
+    notification_link_count = (
+        notification_link.count()
+    )
+
+    print(
+        "🔔 通知リンク数:",
+        notification_link_count
+    )
+
+
+    # ========================================================
+    # SPAリンクがある場合はクリック
+    # ========================================================
+
+    if notification_link_count > 0:
+
+        print(
+            "🔔 SPA内の通知リンクをクリック"
+        )
+
+        notification_link.first.click()
+
+        try:
+
+            page.wait_for_url(
+                "**/notifications*",
+                timeout=30000
+            )
+
+        except PlaywrightTimeoutError:
+
+            print(
+                "⚠ URL待機タイムアウト"
+            )
+
+            print(
+                "現在URL:",
+                page.url
+            )
+
+
+    # ========================================================
+    # 通知リンクが見つからない場合
+    #
+    # 認証済み状態なので直接遷移を試す
+    # ========================================================
+
+    else:
+
+        print(
+            "⚠ 通知リンクが見つからないため"
+            "認証済みContextで直接遷移します"
+        )
+
+        page.goto(
+            NOTIFICATIONS_URL,
+            wait_until="domcontentloaded",
+            timeout=60000
+        )
+
+
+    # ========================================================
+    # 通知ページ確認
+    # ========================================================
+
+    print("")
+    print(
+        "========== NOTIFICATIONS =========="
+    )
+
+    print(
+        "URL:",
+        page.url
+    )
+
+    print(
+        "TITLE:",
         page.title()
     )
 
 
     # ========================================================
-    # 画面本文
+    # 通知記事の描画待ち
     # ========================================================
 
     try:
-        body_text = (
-            page
-            .locator("body")
-            .inner_text()
-        )
 
-        print("")
-        print(
-            "---------- 画面本文 ----------"
-        )
-
-        print(
-            body_text[:5000]
-        )
-
-        print(
-            "---------- 画面本文ここまで ----------"
-        )
-
-    except Exception as e:
-        print(
-            "⚠ 画面本文取得失敗:",
-            e
-        )
-
-
-    # ========================================================
-    # HTML基本状態
-    # ========================================================
-
-    try:
-        html = page.content()
-
-        print("")
-        print(
-            "---------- HTML STATUS ----------"
-        )
-
-        print(
-            "HTML文字数:",
-            len(html)
-        )
-
-        print(
-            "bodyタグ数:",
-            page.locator("body").count()
-        )
-
-        print(
-            "#__layout数:",
-            page.locator("#__layout").count()
-        )
-
-        print(
-            "#__nuxt数:",
-            page.locator("#__nuxt").count()
-        )
-
-        print(
-            "scriptタグ数:",
-            page.locator("script").count()
-        )
-
-        print(
-            "div総数:",
-            page.locator("div").count()
-        )
-
-    except Exception as e:
-        print(
-            "⚠ HTML確認失敗:",
-            e
-        )
-
-
-    # ========================================================
-    # Cookie確認
-    # ========================================================
-
-    print("")
-    print(
-        "---------- COOKIE ----------"
-    )
-
-    cookies = context.cookies()
-
-    print(
-        "Cookie数:",
-        len(cookies)
-    )
-
-    for cookie in cookies:
-        print(
-            "COOKIE:",
-            cookie["name"],
-            cookie["domain"]
-        )
-
-
-    # ========================================================
-    # localStorage確認
-    # ========================================================
-
-    print("")
-    print(
-        "---------- LOCAL STORAGE ----------"
-    )
-
-    try:
-        local_storage = page.evaluate("""
-            () => {
-                const result = {};
-
-                for (
-                    let i = 0;
-                    i < localStorage.length;
-                    i++
-                ) {
-                    const key = localStorage.key(i);
-
-                    result[key] = localStorage.getItem(key);
-                }
-
-                return result;
-            }
-        """)
-
-        print(
-            "localStorageキー数:",
-            len(local_storage)
-        )
-
-        for key in local_storage.keys():
-            print(
-                "LOCALSTORAGE KEY:",
-                key
-            )
-
-    except Exception as e:
-        print(
-            "⚠ localStorage取得失敗:",
-            e
-        )
-
-
-    # ========================================================
-    # sessionStorage確認
-    # ========================================================
-
-    print("")
-    print(
-        "---------- SESSION STORAGE ----------"
-    )
-
-    try:
-        session_storage = page.evaluate("""
-            () => {
-                const result = {};
-
-                for (
-                    let i = 0;
-                    i < sessionStorage.length;
-                    i++
-                ) {
-                    const key = sessionStorage.key(i);
-
-                    result[key] = sessionStorage.getItem(key);
-                }
-
-                return result;
-            }
-        """)
-
-        print(
-            "sessionStorageキー数:",
-            len(session_storage)
-        )
-
-        for key in session_storage.keys():
-            print(
-                "SESSIONSTORAGE KEY:",
-                key
-            )
-
-    except Exception as e:
-        print(
-            "⚠ sessionStorage取得失敗:",
-            e
-        )
-
-
-    # ========================================================
-    # DOM確認
-    # ========================================================
-
-    print("")
-    print(
-        "---------- DOM ----------"
-    )
-
-    print(
-        "email入力欄数:",
         page.locator(
-            "#email"
-        ).count()
-    )
+            "div.content_NR3Mk > article"
+        ).first.wait_for(
+            state="attached",
+            timeout=30000
+        )
 
-    print(
-        "password入力欄数:",
-        page.locator(
-            "#password"
-        ).count()
-    )
+        print(
+            "✅ 通知記事DOMを確認"
+        )
 
-    print(
-        "通知リンク数:",
-        page.locator(
-            'a[href="/notifications"]'
-        ).count()
-    )
+    except PlaywrightTimeoutError:
+
+        print(
+            "⚠ 30秒待っても通知記事が表示されません"
+        )
+
+
+    # ========================================================
+    # 最終DOM診断
+    # ========================================================
 
     print(
         "article総数:",
@@ -673,73 +690,70 @@ with sync_playwright() as p:
     )
 
     print(
-        "aタグ総数:",
+        "対象article数:",
         page.locator(
-            "a"
+            "div.content_NR3Mk > article"
         ).count()
     )
 
+    print(
+        "====================================="
+    )
+
 
     # ========================================================
-    # ログイン状態判定
+    # 通知取得
     # ========================================================
+
+    items = extract_items(
+        page
+    )
+
+
+    # ========================================================
+    # 0件ならRSSを上書きしない
+    # ========================================================
+
+    if len(items) == 0:
+
+        print("")
+        print(
+            "❌ 通知を1件も取得できませんでした。"
+        )
+
+        print(
+            "既存RSSを保護するため"
+            "notifications.xmlは更新しません。"
+        )
+
+        browser.close()
+
+        raise RuntimeError(
+            "No notifications found"
+        )
+
+
+    # ========================================================
+    # RSS生成
+    # ========================================================
+
+    save_as_xml(
+        items,
+        OUTPUT_PATH
+    )
 
     print("")
     print(
-        "---------- URL判定 ----------"
-    )
-
-    current_url = page.url
-
-    if "login-id.dx-utility.com" in current_url:
-
-        print(
-            "❌ ログインページに戻っています"
-        )
-
-    elif (
-        current_url.rstrip("/")
-        == "https://dx.collaboportal.com"
-    ):
-
-        print(
-            "✅ Collabo Portalトップページにいます"
-        )
-
-    elif "dx.collaboportal.com" in current_url:
-
-        print(
-            "✅ Collabo Portal内にいます"
-        )
-
-    else:
-
-        print(
-            "⚠ 想定外のURLです"
-        )
-
-
-    print("")
-    print(
-        "========== LOGIN RESULT END =========="
+        f"🎉 {len(items)}件の通知をRSSへ出力しました"
     )
 
 
     # ========================================================
-    # 今回はここで終了
+    # 終了
     # ========================================================
-
-    print("")
-    print(
-        "🔍 今回はSPA/APIの状態確認のみ行います。"
-    )
-
-    print(
-        "RSSファイルは更新しません。"
-    )
-
-    print(
-        "⏹ 処理終了。ブラウザを閉じます。"
-    )
 
     browser.close()
+
+    print(
+        "========== COMPLETE =========="
+    )
